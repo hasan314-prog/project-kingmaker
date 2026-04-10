@@ -1369,6 +1369,111 @@
     .modal-h { font-size: 16px; font-weight: 900; margin-bottom: 14px; }
     .modal-btns { display: flex; gap: 10px; margin-top: 16px; }
 
+    /* ── Landing Page ── */
+    @keyframes lp-fadein {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes lp-crown-pulse {
+      0%, 100% { transform: scale(1);    filter: drop-shadow(0 0 10px rgba(255,107,53,0.4)); }
+      50%       { transform: scale(1.08); filter: drop-shadow(0 0 24px rgba(255,107,53,0.75)); }
+    }
+    @keyframes lp-glow-pulse {
+      0%, 100% { box-shadow: 0 0 0px rgba(255,107,53,0); }
+      50%       { box-shadow: 0 0 28px rgba(255,107,53,0.45); }
+    }
+
+    #gate-landing {
+      justify-content: flex-start;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 0;
+    }
+    .lp-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 60px 28px 44px;
+      min-height: 100%;
+      animation: lp-fadein 0.65s cubic-bezier(0.22,1,0.36,1) both;
+    }
+    .lp-crown {
+      font-size: 64px;
+      line-height: 1;
+      margin-bottom: 24px;
+      animation: lp-crown-pulse 3s ease-in-out infinite;
+      user-select: none;
+    }
+    .lp-eyebrow {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.45em;
+      color: var(--red);
+      margin-bottom: 4px;
+    }
+    .lp-title {
+      font-size: clamp(36px, 10vw, 52px);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      color: var(--text);
+      margin-bottom: 14px;
+    }
+    .lp-title span { color: var(--orange); }
+    .lp-tagline {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 44px;
+    }
+    .lp-features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      width: 100%;
+      max-width: 340px;
+      margin-bottom: 44px;
+    }
+    .lp-feature {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .lp-feat-icon {
+      font-size: 26px;
+      line-height: 1;
+    }
+    .lp-feat-label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+    .lp-cta {
+      background: var(--orange);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      max-width: 340px;
+      margin-bottom: 20px;
+      animation: lp-glow-pulse 2.5s ease-in-out infinite;
+    }
+    .lp-footer {
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.03em;
+    }
+
     /* ── Print / PDF report ── */
     #print-report { display: none; }
 
@@ -1388,6 +1493,40 @@
 </head>
 <body>
 <div id="app">
+
+  <!-- ══════════ GATE: LANDING ══════════ -->
+  <div id="gate-landing" class="gate off">
+    <div class="lp-inner">
+
+      <div class="lp-crown">♛</div>
+      <div class="lp-eyebrow">Project</div>
+      <div class="lp-title">KING<span>MAKER</span></div>
+      <div class="lp-tagline">Discipline · Data · Dominance</div>
+
+      <div class="lp-features">
+        <div class="lp-feature">
+          <div class="lp-feat-icon">◉</div>
+          <div class="lp-feat-label">Daily Check-Ins</div>
+        </div>
+        <div class="lp-feature">
+          <div class="lp-feat-icon">📏</div>
+          <div class="lp-feat-label">Body Metrics</div>
+        </div>
+        <div class="lp-feature">
+          <div class="lp-feat-icon">⚑</div>
+          <div class="lp-feat-label">8-Day Reviews</div>
+        </div>
+        <div class="lp-feature">
+          <div class="lp-feat-icon">📄</div>
+          <div class="lp-feat-label">Progress Reports</div>
+        </div>
+      </div>
+
+      <button class="btn lp-cta" onclick="startJourney()">BEGIN YOUR REIGN →</button>
+      <div class="lp-footer">No account needed &nbsp;·&nbsp; All data stays on your device</div>
+
+    </div>
+  </div>
 
   <!-- ══════════ GATE: ONBOARDING ══════════ -->
   <div id="gate-onboarding" class="gate gate-form off">
@@ -2321,8 +2460,8 @@ function boot() {
   applyTheme();
   checkPastFailures();
 
-  // 1. First-launch onboarding
-  if (!S.onboardingDone) { showOnboarding(); return; }
+  // 1. First-launch — show landing page, then onboarding
+  if (!S.onboardingDone) { showLanding(); return; }
 
   const today = todayStr();
 
@@ -2811,6 +2950,17 @@ function renderLevel() {
 /* ─────────────────────────────
    ONBOARDING
 ───────────────────────────────*/
+/* ─── Landing Page ─────────────────────────── */
+function showLanding() {
+  $('gate-landing').classList.remove('off');
+}
+
+function startJourney() {
+  $('gate-landing').classList.add('off');
+  showOnboarding();
+}
+
+/* ─── Onboarding ────────────────────────────── */
 let _obMUnit = 'in';
 
 function showOnboarding() {
