@@ -469,6 +469,18 @@
     .text-input:focus { border-color: var(--red); }
     .input-row { display: flex; gap: 8px; align-items: stretch; }
 
+    /* Custom task rows in Config */
+    .ct-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: var(--radius);
+      background: var(--surface-2); border: 1px solid var(--border);
+      margin-bottom: 6px;
+    }
+    .ct-num  { font-size: 9px; font-weight: 800; color: var(--text-muted); min-width: 18px; }
+    .ct-text { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ct-del  { background: none; border: none; color: var(--text-muted); font-size: 16px; cursor: pointer; padding: 0 2px; line-height: 1; flex-shrink: 0; }
+    .ct-del:active { color: var(--red); }
+
     .deadline-display { font-size: 32px; font-weight: 900; letter-spacing: -0.04em; color: var(--red); margin-bottom: 6px; }
     .deadline-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 14px; }
 
@@ -2113,14 +2125,15 @@
         <div class="divider"></div>
 
         <div class="config-block">
-          <div class="cfg-label">Today's Discipline Task</div>
-          <div class="cfg-title">Discipline Task</div>
-          <div class="cfg-desc">Assign today's discipline requirement. If not set, the task cannot be marked complete.</div>
-          <textarea id="discipline-input" class="text-input" rows="2"
-            placeholder="e.g., Cold shower. Read 20 pages. No social media."
-            maxlength="120"></textarea>
-          <div style="margin-top:8px;">
-            <button class="btn btn-red btn-sm" onclick="saveDisciplineTask()">SAVE TASK</button>
+          <div class="cfg-label">Daily Tasks</div>
+          <div class="cfg-title">Custom Tasks</div>
+          <div class="cfg-desc">Add your personal accountability tasks. Each appears as a trackable item every day.</div>
+          <div id="custom-tasks-list" style="margin:10px 0 0;"></div>
+          <div class="input-row" style="margin-top:8px;">
+            <input type="text" id="new-task-input" class="text-input"
+              placeholder="e.g., Cold shower" maxlength="60"
+              onkeydown="if(event.key==='Enter')addCustomTask()" />
+            <button class="btn btn-red btn-sm" onclick="addCustomTask()" style="white-space:nowrap;">+ ADD</button>
           </div>
         </div>
 
@@ -2461,12 +2474,13 @@ function authSignOut() {
     _currentUser = null;
     // Reset to default state
     S = { days:{}, weights:{}, measurements:{}, measurementUnit:'in',
-      weightUnit:'kg', disciplineTask:'', stepGoal:10000, deadlineHour:23,
+      weightUnit:'kg', customTasks:[], stepGoal:10000, deadlineHour:23,
       onboardingDone:false, onboardingFails:'', onboardingReason:'',
       pendingPenalty:null, pendingReview:false, reviewCount:0,
       weeklyReviews:[], coachFeedback:[], theme: S.theme || 'dark',
       name:'', goal:'', height:'', statsWindow:30,
     };
+    refreshTasks();
     showAuthGate();
   });
 }
@@ -2480,6 +2494,8 @@ async function loadFromFirestore() {
       const remote = snap.data().state;
       if (remote) {
         S = { ...S, ...remote };
+        _migrateState();
+        refreshTasks();
         try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(_) {}
       }
     } else {
@@ -2505,13 +2521,34 @@ const LEVELS = [
 /* ─────────────────────────────
    TASK DEFINITIONS
 ───────────────────────────────*/
-const TASKS = [
+// Fixed tasks — always present
+const _TASKS_PRE = [
   { id:'training',  num:'01', title:'TRAINING/RUNNING', instruction:'Complete your full training or running session.', detail:'No shortened sessions. No substitutions. No rest day excuses.' },
-  { id:'steps',     num:'02', title:'STUDY FOR 30 MINUTES',           instruction:'Keep exploring new ideas',             detail:'Sedentary days are failed days. Move.' },
-  { id:'nutrition', num:'03', title:'NUTRITION',       instruction:'Execute your nutrition protocol exactly.', detail:'No deviations. No cheat meals. No rationalizations.' },
-  { id:'discipline',num:'04', title:'DISCIPLINE TASK', instruction:'',                                        detail:"Complete today's assigned discipline task in full." },
-  { id:'checkin',   num:'05', title:'DAILY CHECK-IN',  instruction:'Complete the daily accountability report',  detail:'Report energy level, task execution, and body weight. Cannot be skipped.' },
+  { id:'steps',     num:'02', title:'STUDY FOR 30 MINUTES', instruction:'Keep exploring new ideas', detail:'Sedentary days are failed days. Move.' },
+  { id:'nutrition', num:'03', title:'NUTRITION', instruction:'Execute your nutrition protocol exactly.', detail:'No deviations. No cheat meals. No rationalizations.' },
 ];
+const _TASK_CHECKIN = { id:'checkin', title:'DAILY CHECK-IN', instruction:'Complete the daily accountability report', detail:'Report energy level, task execution, and body weight. Cannot be skipped.' };
+
+// Mutable task list — rebuilt by refreshTasks() whenever custom tasks change
+let TASKS = [..._TASKS_PRE, _TASK_CHECKIN];
+
+function refreshTasks() {
+  const custom = (S.customTasks || []).map((ct, i) => ({
+    id:          ct.id,
+    num:         String(_TASKS_PRE.length + i + 1).padStart(2, '0'),
+    title:       ct.text.toUpperCase(),
+    instruction: ct.text,
+    detail:      'Complete this task fully before the deadline.',
+  }));
+  const total = _TASKS_PRE.length + custom.length + 1;  // +1 for checkin
+  TASKS = [
+    ..._TASKS_PRE,
+    ...custom,
+    { ..._TASK_CHECKIN, num: String(total).padStart(2, '0') },
+  ];
+  // Also fix numbering on pre-tasks (they never change but keep it tidy)
+  _TASKS_PRE.forEach((t, i) => { t.num = String(i + 1).padStart(2, '0'); });
+}
 
 /* ─────────────────────────────
    STATE
@@ -2524,7 +2561,7 @@ let S = {
   bestStreak:      0,
   totalComplete:   0,
   totalFailed:     0,
-  disciplineTask:  '',
+  customTasks:     [],     // [{ id:'ct_<n>', text:'...' }] — user-defined tasks
   stepGoal:        10000,
   deadlineHour:    23,
   pendingPenalty:  null,
@@ -2567,6 +2604,17 @@ function save() {
 
 function load() {
   try { const r = localStorage.getItem(KEY); if (r) S = { ...S, ...JSON.parse(r) }; } catch(_) {}
+  _migrateState();
+  refreshTasks();
+}
+
+function _migrateState() {
+  // Migrate old single disciplineTask → customTasks array
+  if (S.disciplineTask && (!S.customTasks || S.customTasks.length === 0)) {
+    S.customTasks = [{ id: 'ct_0', text: S.disciplineTask }];
+    delete S.disciplineTask;
+  }
+  if (!S.customTasks) S.customTasks = [];
 }
 
 /* ─────────────────────────────
@@ -2633,7 +2681,7 @@ function checkPastFailures() {
   const yk = dkFrom(yest.getFullYear(), yest.getMonth(), yest.getDate());
   const anyHistory = Object.keys(S.days).some(k => k < yk);
   if (anyHistory && !S.days[yk]) {
-    S.days[yk] = { status:'failed', checkedIn:false, checkInTime:null, completedIds:[], completedAt:null, disciplineText:'' };
+    S.days[yk] = { status:'failed', checkedIn:false, checkInTime:null, completedIds:[], completedAt:null };
     S.totalFailed++;
     if (S.streak > 0) S.streak = 0;
   }
@@ -2704,7 +2752,6 @@ function freshDay() {
     checkInTime:   null,
     completedIds:  [],
     completedAt:   null,
-    disciplineText: S.disciplineTask || '',
     // Daily check-in form fields
     ciFormDone:    false,    // true once form submitted
     ciAllDone:     null,     // true = all tasks done, false = some missed
@@ -2784,9 +2831,6 @@ function completeTask(taskId) {
     return;
   }
 
-  if (taskId === 'discipline' && !day.disciplineText && !S.disciplineTask) {
-    showToast('Set a discipline task in Config first.'); return;
-  }
   if (day.completedIds.includes(taskId)) return;
   day.completedIds.push(taskId);
   if (day.completedIds.length === TASKS.length) sealDay();
@@ -3630,7 +3674,7 @@ function renderToday() {
     rb.className = 'show success'; rb.style.display = 'flex';
     $('drb-icon').textContent  = '✓';
     $('drb-title').textContent = 'Day Complete';
-    $('drb-sub').textContent   = `All 5 tasks completed. Streak: ${S.streak} day${S.streak===1?'':'s'}.`;
+    $('drb-sub').textContent   = `All ${TASKS.length} tasks completed. Streak: ${S.streak} day${S.streak===1?'':'s'}.`;
   } else if (dayFailed) {
     rb.className = 'show fail'; rb.style.display = 'flex';
     $('drb-icon').textContent  = '✖';
@@ -3647,16 +3691,20 @@ function renderToday() {
   fill.className   = 'prog-fill' + (dayFailed ? ' fail' : done===0 ? ' zero' : '');
 
   const pips = $('prog-pips').children;
-  for (let i=0; i<5; i++) {
-    const tid = TASKS[i].id;
-    pips[i].className = 'pip ' + (day.completedIds.includes(tid) ? (dayFailed ? 'fail' : 'done') : (dayFailed ? 'fail' : 'today'));
+  // Pips — dynamic count matching current TASKS
+  const pipEl = $('prog-pips');
+  // Rebuild pips if count changed
+  if (pipEl.children.length !== TASKS.length) {
+    pipEl.innerHTML = TASKS.map(() => `<div class="pip today"></div>`).join('');
   }
-
-  const disciplineText = day.disciplineText || S.disciplineTask || '';
+  for (let i = 0; i < TASKS.length; i++) {
+    const tid = TASKS[i].id;
+    pipEl.children[i].className = 'pip ' + (day.completedIds.includes(tid) ? (dayFailed ? 'fail' : 'done') : (dayFailed ? 'fail' : 'today'));
+  }
 
   $('task-cards').innerHTML = TASKS.map(t => {
     const isComplete = day.completedIds.includes(t.id);
-    const instruction = t.id === 'discipline' ? (disciplineText || '— Not set —') : t.instruction;
+    const instruction = t.instruction;
     const stepNote    = t.id === 'steps' ? `Target: ${S.stepGoal.toLocaleString()} steps.` : null;
 
     const statusClass = isComplete ? 'complete' : (dayFailed && !isComplete ? 'failed' : 'pending');
@@ -3670,18 +3718,13 @@ function renderToday() {
       btnHtml = `<button class="tc-btn failed-btn" disabled><span class="tc-btn-icon">✖</span> FAILED — NOT COMPLETED</button>`;
     } else if (locked) {
       btnHtml = `<button class="tc-btn locked-btn" disabled><span class="tc-btn-icon">⏸</span> DEADLINE PASSED</button>`;
-    } else if (t.id === 'discipline' && !disciplineText) {
-      btnHtml = `<button class="tc-btn locked-btn" onclick="goto('config')"><span class="tc-btn-icon">↗</span> SET TASK IN CONFIG</button>`;
     } else if (t.id === 'checkin') {
-      // Check-in task opens the evening form instead of direct completion
       btnHtml = `<button class="tc-btn pending-btn" onclick="completeTask('checkin')" style="border-color:var(--red-dim);color:var(--red);"><span class="tc-btn-icon">◉</span> OPEN CHECK-IN FORM</button>`;
     } else {
       btnHtml = `<button class="tc-btn pending-btn" onclick="completeTask('${t.id}')"><span class="tc-btn-icon">○</span> MARK COMPLETE</button>`;
     }
 
-    const stepLine  = stepNote ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${stepNote}</div>` : '';
-    const notSetNote = (t.id==='discipline' && !disciplineText && !dayFailed && !locked)
-      ? `<div class="tc-set-note">Task not assigned. <a onclick="goto('config')">Set in Config →</a></div>` : '';
+    const stepLine = stepNote ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${stepNote}</div>` : '';
 
     return `
       <div class="task-card ${cardClass}">
@@ -3693,7 +3736,6 @@ function renderToday() {
           <div class="tc-instruction">${instruction}</div>
           ${stepLine}
           <div class="tc-detail">${t.detail}</div>
-          ${notSetNote}
           <div style="margin-top:2px;">${btnHtml}</div>
         </div>
       </div>`;
@@ -3759,22 +3801,52 @@ function toggleThemeQuick() {
    RENDER: CONFIG
 ───────────────────────────────*/
 function renderConfig() {
-  const today = todayStr(), day = S.days[today];
-  $('discipline-input').value   = (day && day.disciplineText) || S.disciplineTask || '';
   $('step-goal-input').value    = S.stepGoal;
   $('cfg-deadline-display').textContent = deadlineStr();
   $('deadline-hour-select').value = String(S.deadlineHour);
   $('weight-unit-select').value   = S.weightUnit;
   if ($('cfg-user-email')) $('cfg-user-email').textContent = _currentUser ? _currentUser.email : '—';
+  renderCustomTasksList();
 }
 
-function saveDisciplineTask() {
-  const val = $('discipline-input').value.trim();
-  if (!val) { showToast('Enter a discipline task.'); return; }
-  S.disciplineTask = val;
-  const today = todayStr();
-  if (S.days[today]) S.days[today].disciplineText = val;
-  save(); renderToday(); showToast('Discipline task saved.');
+function addCustomTask() {
+  const inp = $('new-task-input');
+  const val = inp.value.trim();
+  if (!val) { showToast('Enter a task name.'); return; }
+  if (S.customTasks.length >= 10) { showToast('Max 10 custom tasks.'); return; }
+  const id = 'ct_' + Date.now();
+  S.customTasks.push({ id, text: val });
+  inp.value = '';
+  refreshTasks();
+  save();
+  renderCustomTasksList();
+  renderToday();
+  showToast('Task added.');
+}
+
+function removeCustomTask(id) {
+  S.customTasks = S.customTasks.filter(ct => ct.id !== id);
+  refreshTasks();
+  save();
+  renderCustomTasksList();
+  renderToday();
+  showToast('Task removed.');
+}
+
+function renderCustomTasksList() {
+  const el = $('custom-tasks-list');
+  if (!el) return;
+  if (!S.customTasks || S.customTasks.length === 0) {
+    el.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:4px 0;">No custom tasks yet. Add one below.</div>`;
+    return;
+  }
+  el.innerHTML = S.customTasks.map((ct, i) =>
+    `<div class="ct-row">
+      <span class="ct-num">${String(_TASKS_PRE.length + i + 1).padStart(2,'0')}</span>
+      <span class="ct-text">${ct.text}</span>
+      <button class="ct-del" onclick="removeCustomTask('${ct.id}')" title="Remove">×</button>
+    </div>`
+  ).join('');
 }
 
 function saveStepGoal() {
@@ -3888,7 +3960,6 @@ function _execSeedDemoData() {
       checkInTime:   '07:' + String((i * 7) % 60).padStart(2, '0'),
       completedIds,
       completedAt:   failed ? null : '20:15',
-      disciplineText: 'Cold shower every morning',
       ciFormDone:    ciDone,
       ciAllDone:     !failed,
       ciEnergy:      energy,
@@ -3957,7 +4028,10 @@ function _execSeedDemoData() {
   S.bestStreak     = bestStreak;
   S.totalComplete  = totalComplete;
   S.totalFailed    = totalFailed;
-  S.disciplineTask = 'Cold shower every morning';
+  S.customTasks    = [
+    { id: 'ct_demo1', text: 'Cold shower every morning' },
+    { id: 'ct_demo2', text: 'Read 20 pages' },
+  ];
   S.stepGoal       = 11000;
   S.deadlineHour   = 21;
   S.pendingPenalty = null;
@@ -3976,6 +4050,7 @@ function _execSeedDemoData() {
   S.weeklyReviews  = weeklyReviews;
   S.coachFeedback  = coachFeedback;
 
+  refreshTasks();
   save();
   showToast('Demo data loaded — 45 days seeded.');
   setTimeout(boot, 300);
