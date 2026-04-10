@@ -1959,7 +1959,7 @@
       <div id="timer-banner">
         <div class="tb-left">
           <div class="tb-label">Time Remaining</div>
-          <div class="tb-deadline" id="tb-deadline">Deadline: 11:00 PM</div>
+          <div class="tb-deadline" id="tb-deadline">Deadline: 11:59 PM</div>
         </div>
         <div class="tb-time" id="tb-time">--:--:--</div>
       </div>
@@ -2051,16 +2051,16 @@
           <div class="cfg-label">Daily Deadline</div>
           <div class="cfg-title">Task Deadline</div>
           <div class="cfg-desc">All tasks must be marked complete before this time. After the deadline, incomplete tasks are locked.</div>
-          <div class="deadline-display" id="cfg-deadline-display">11:00 PM</div>
+          <div class="deadline-display" id="cfg-deadline-display">11:59 PM</div>
           <div class="deadline-sub">Select hour below</div>
           <div class="input-row">
             <select id="deadline-hour-select" class="text-input" style="flex:1;">
-              <option value="18">6:00 PM</option>
-              <option value="19">7:00 PM</option>
-              <option value="20">8:00 PM</option>
-              <option value="21" selected>9:00 PM</option>
-              <option value="22">10:00 PM</option>
-              <option value="23">11:00 PM</option>
+              <option value="18">6:59 PM</option>
+              <option value="19">7:59 PM</option>
+              <option value="20">8:59 PM</option>
+              <option value="21">9:59 PM</option>
+              <option value="22">10:59 PM</option>
+              <option value="23" selected>11:59 PM</option>
             </select>
             <button class="btn btn-red btn-sm" onclick="saveDeadline()">SET</button>
           </div>
@@ -2326,7 +2326,7 @@ let S = {
   totalFailed:     0,
   disciplineTask:  '',
   stepGoal:        10000,
-  deadlineHour:    21,
+  deadlineHour:    23,
   pendingPenalty:  null,
   weights:         {},      // { "YYYY-MM-DD": number }
   weightUnit:      'kg',
@@ -2397,14 +2397,14 @@ function weekDates() {
    DEADLINE
 ───────────────────────────────*/
 function getDeadlineMs() {
-  const d = new Date(); d.setHours(S.deadlineHour, 0, 0, 0); return d.getTime();
+  const d = new Date(); d.setHours(S.deadlineHour, 59, 59, 0); return d.getTime();
 }
 
 function isPastDeadline() { return Date.now() >= getDeadlineMs(); }
 
 function deadlineStr() {
   const h = S.deadlineHour, ampm = h >= 12 ? 'PM' : 'AM', h12 = h > 12 ? h - 12 : h;
-  return `${h12}:00 ${ampm}`;
+  return `${h12}:59 ${ampm}`;
 }
 
 /* ─────────────────────────────
