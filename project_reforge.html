@@ -20,6 +20,12 @@
   <meta name="application-name" content="KingMaker" />
   <meta name="description" content="Elite fitness accountability tracker — discipline, data, dominance." />
   <!-- ─────────────────────────────────────────────── -->
+
+  <!-- ── Firebase (compat CDN — no bundler needed) ── -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
   <style>
     /* ══════════════════════════════════════════
        TOKENS
@@ -1474,6 +1480,42 @@
       letter-spacing: 0.03em;
     }
 
+    /* ── Auth Gate ── */
+    #gate-auth { justify-content: center; }
+    .auth-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 360px;
+      padding: 0 28px;
+      animation: lp-fadein 0.5s cubic-bezier(0.22,1,0.36,1) both;
+    }
+    .auth-crown { font-size: 42px; margin-bottom: 16px; }
+    .auth-brand { font-size: 10px; font-weight: 800; letter-spacing: 0.35em; color: var(--red); margin-bottom: 6px; }
+    .auth-title { font-size: 26px; font-weight: 900; letter-spacing: -0.02em; margin-bottom: 4px; }
+    .auth-title span { color: var(--orange); }
+    .auth-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 36px; }
+    .auth-tabs {
+      display: flex; width: 100%; margin-bottom: 24px;
+      background: var(--surface-2); border-radius: var(--radius); overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .auth-tab {
+      flex: 1; padding: 10px; font-size: 11px; font-weight: 800; letter-spacing: 0.1em;
+      text-transform: uppercase; cursor: pointer; border: none; background: transparent;
+      color: var(--text-dim); font-family: inherit; transition: all 0.15s;
+    }
+    .auth-tab.active { background: var(--surface-3); color: var(--text); }
+    .auth-field { width: 100%; margin-bottom: 12px; }
+    .auth-field label { display: block; font-size: 10px; font-weight: 800; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; }
+    .auth-field input { width: 100%; box-sizing: border-box; }
+    .auth-error { font-size: 11px; color: var(--red); margin-bottom: 12px; min-height: 16px; text-align: center; }
+    .auth-footer { font-size: 11px; color: var(--text-muted); margin-top: 20px; }
+    #auth-loading { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; gap: 16px; }
+    #auth-loading .ld-icon { font-size: 42px; animation: lp-crown-pulse 2s ease-in-out infinite; }
+    #auth-loading .ld-text { font-size: 11px; font-weight: 800; letter-spacing: 0.25em; color: var(--text-dim); }
+
     /* ── Print / PDF report ── */
     #print-report { display: none; }
 
@@ -1493,6 +1535,42 @@
 </head>
 <body>
 <div id="app">
+
+  <!-- ══════════ LOADING SPLASH ══════════ -->
+  <div id="auth-loading">
+    <div class="ld-icon">♛</div>
+    <div class="ld-text">LOADING…</div>
+  </div>
+
+  <!-- ══════════ GATE: AUTH (Login / Signup) ══════════ -->
+  <div id="gate-auth" class="gate off">
+    <div class="auth-inner">
+      <div class="auth-crown">♛</div>
+      <div class="auth-brand">Project</div>
+      <div class="auth-title">KING<span>MAKER</span></div>
+      <div class="auth-sub">Your elite fitness accountability system</div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="auth-tab-signin" onclick="authSwitchTab('signin')">Sign In</button>
+        <button class="auth-tab"        id="auth-tab-signup" onclick="authSwitchTab('signup')">Create Account</button>
+      </div>
+
+      <div class="auth-field">
+        <label>Email</label>
+        <input type="email" id="auth-email" class="text-input" placeholder="you@example.com" autocomplete="email" />
+      </div>
+      <div class="auth-field">
+        <label>Password</label>
+        <input type="password" id="auth-pass" class="text-input" placeholder="Min. 6 characters" autocomplete="current-password" />
+      </div>
+
+      <div class="auth-error" id="auth-error"></div>
+
+      <button class="btn btn-red" id="auth-submit-btn" onclick="authSubmit()" style="width:100%;">SIGN IN →</button>
+
+      <div class="auth-footer">All your data is securely synced across devices.</div>
+    </div>
+  </div>
 
   <!-- ══════════ GATE: LANDING ══════════ -->
   <div id="gate-landing" class="gate off">
@@ -2011,6 +2089,15 @@
       <div class="screen-body">
 
         <div class="config-block">
+          <div class="cfg-label">Account</div>
+          <div class="cfg-title">Signed In As</div>
+          <div class="cfg-desc" id="cfg-user-email" style="word-break:break-all;">—</div>
+          <button class="btn btn-ghost btn-sm" onclick="authSignOut()" style="margin-top:8px;border-color:var(--red);color:var(--red);">Sign Out</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="config-block">
           <div class="cfg-label">Appearance</div>
           <div class="cfg-title">Theme</div>
           <div class="cfg-desc">Choose your preferred display mode.</div>
@@ -2292,6 +2379,118 @@
 <script>
 'use strict';
 
+/* ═══════════════════════════════════════════════
+   FIREBASE — init, auth, firestore sync
+═══════════════════════════════════════════════ */
+const _fbConfig = {
+  apiKey:            "AIzaSyCql31tehe0fvSqW3ulTAW14EtxnGg-6tM",
+  authDomain:        "project-kingmaker.firebaseapp.com",
+  projectId:         "project-kingmaker",
+  storageBucket:     "project-kingmaker.firebasestorage.app",
+  messagingSenderId: "465433549263",
+  appId:             "1:465433549263:web:e8409826b65b3a77a6daba"
+};
+firebase.initializeApp(_fbConfig);
+const _auth = firebase.auth();
+const _db   = firebase.firestore();
+let _currentUser = null;
+let _saveTimer   = null;
+let _authMode    = 'signin';   // 'signin' | 'signup'
+
+// ── Auth gate UI ──────────────────────────────────
+function showAuthGate() {
+  $('auth-loading').style.display = 'none';
+  $('gate-auth').classList.remove('off');
+}
+
+function hideAuthGate() {
+  $('gate-auth').classList.add('off');
+}
+
+function authSwitchTab(mode) {
+  _authMode = mode;
+  $('auth-tab-signin').classList.toggle('active', mode === 'signin');
+  $('auth-tab-signup').classList.toggle('active', mode === 'signup');
+  $('auth-submit-btn').textContent = mode === 'signin' ? 'SIGN IN →' : 'CREATE ACCOUNT →';
+  $('auth-error').textContent = '';
+}
+
+async function authSubmit() {
+  const email = $('auth-email').value.trim();
+  const pass  = $('auth-pass').value;
+  const errEl = $('auth-error');
+  errEl.textContent = '';
+
+  if (!email || !pass) { errEl.textContent = 'Please enter email and password.'; return; }
+  if (pass.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
+
+  $('auth-submit-btn').disabled = true;
+  $('auth-submit-btn').textContent = 'Please wait…';
+
+  try {
+    if (_authMode === 'signin') {
+      await _auth.signInWithEmailAndPassword(email, pass);
+    } else {
+      await _auth.createUserWithEmailAndPassword(email, pass);
+    }
+    // onAuthStateChanged handles the rest
+  } catch(e) {
+    errEl.textContent = _friendlyAuthError(e.code);
+    $('auth-submit-btn').disabled = false;
+    authSwitchTab(_authMode);
+  }
+}
+
+function _friendlyAuthError(code) {
+  const map = {
+    'auth/user-not-found':      'No account found with this email.',
+    'auth/wrong-password':      'Incorrect password. Please try again.',
+    'auth/invalid-credential':  'Incorrect email or password.',
+    'auth/email-already-in-use':'This email is already registered. Sign in instead.',
+    'auth/invalid-email':       'Please enter a valid email address.',
+    'auth/too-many-requests':   'Too many attempts. Please wait and try again.',
+    'auth/network-request-failed': 'Network error. Check your connection.',
+  };
+  return map[code] || 'Something went wrong. Please try again.';
+}
+
+function authSignOut() {
+  if (!confirm('Sign out of Project KingMaker?')) return;
+  _auth.signOut().then(() => {
+    _currentUser = null;
+    // Reset to default state
+    S = { days:{}, weights:{}, measurements:{}, measurementUnit:'in',
+      weightUnit:'kg', disciplineTask:'', stepGoal:10000, deadlineHour:23,
+      onboardingDone:false, onboardingFails:'', onboardingReason:'',
+      pendingPenalty:null, pendingReview:false, reviewCount:0,
+      weeklyReviews:[], coachFeedback:[], theme: S.theme || 'dark',
+      name:'', goal:'', height:'', statsWindow:30,
+    };
+    showAuthGate();
+  });
+}
+
+// ── Firestore sync ────────────────────────────────
+async function loadFromFirestore() {
+  if (!_currentUser) return;
+  try {
+    const snap = await _db.collection('users').doc(_currentUser.uid).get();
+    if (snap.exists) {
+      const remote = snap.data().state;
+      if (remote) {
+        S = { ...S, ...remote };
+        try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(_) {}
+      }
+    } else {
+      // New user — try to migrate any existing localStorage data
+      load();
+    }
+  } catch(e) {
+    console.warn('[KM] Firestore load failed, falling back to localStorage:', e);
+    load();
+  }
+}
+
 /* ─────────────────────────────
    LEVEL DEFINITIONS
 ───────────────────────────────*/
@@ -2351,7 +2550,20 @@ let S = {
 
 let statsWindow = 30; // days (0 = all time)
 
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(_) {} }
+function save() {
+  // 1. Always persist locally for instant reads / offline support
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(_) {}
+  // 2. Debounce Firestore write (1.5 s) to avoid hammering on rapid changes
+  if (_currentUser) {
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(() => {
+      _db.collection('users').doc(_currentUser.uid)
+        .set({ state: JSON.parse(JSON.stringify(S)) })  // plain object — no undefined values
+        .catch(e => console.warn('[KM] Firestore save failed:', e));
+    }, 1500);
+  }
+}
+
 function load() {
   try { const r = localStorage.getItem(KEY); if (r) S = { ...S, ...JSON.parse(r) }; } catch(_) {}
 }
@@ -2456,7 +2668,8 @@ function startTimer() {
    5. App
 ───────────────────────────────*/
 function boot() {
-  load();
+  // Data is pre-loaded from Firestore (or localStorage fallback) before boot() is called.
+  // Do NOT call load() here — it would overwrite fresh cloud data with stale local cache.
   applyTheme();
   checkPastFailures();
 
@@ -3556,6 +3769,7 @@ function renderConfig() {
   $('cfg-deadline-display').textContent = deadlineStr();
   $('deadline-hour-select').value = String(S.deadlineHour);
   $('weight-unit-select').value   = S.weightUnit;
+  if ($('cfg-user-email')) $('cfg-user-email').textContent = _currentUser ? _currentUser.email : '—';
 }
 
 function saveDisciplineTask() {
@@ -4361,7 +4575,25 @@ function showToast(msg) {
 
 function $(id) { return document.getElementById(id); }
 
-document.addEventListener('DOMContentLoaded', boot);
+/* ─────────────────────────────────────────────────
+   APP ENTRY POINT — Firebase auth state drives boot
+─────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  _auth.onAuthStateChanged(async (user) => {
+    if (user) {
+      // ── Logged in ──────────────────────────────
+      _currentUser = user;
+      await loadFromFirestore();   // fetch cloud data (falls back to localStorage)
+      $('auth-loading').style.display = 'none';
+      hideAuthGate();
+      boot();                       // run the app
+    } else {
+      // ── Not logged in ──────────────────────────
+      _currentUser = null;
+      showAuthGate();
+    }
+  });
+});
 </script>
 
 <div id="print-report"></div>
