@@ -253,6 +253,20 @@
 
     .sh-right { display: flex; align-items: center; gap: 8px; }
 
+    .theme-quick-toggle {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+      padding: 4px;
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      margin-left: 4px;
+    }
+    .theme-quick-toggle:active { transform: scale(0.88); background: var(--surface-3); }
+
     .sh-streak-val { font-size: 32px; font-weight: 900; letter-spacing: -0.04em; line-height: 1; }
     .sh-streak-val.hot { color: var(--orange); }
     .sh-streak-val.cold { color: var(--text-muted); }
@@ -2031,6 +2045,7 @@
           </div>
           <div class="sh-streak-val cold" id="sh-streak">0</div>
           <div id="sh-flame" style="font-size:26px;">❄️</div>
+          <button id="theme-quick-toggle" class="theme-quick-toggle" onclick="toggleThemeQuick()" title="Toggle theme">💡</button>
         </div>
       </div>
 
@@ -3757,6 +3772,13 @@ function _syncThemeBtns(t) {
   active.style.borderColor = 'var(--orange)';
   active.style.color       = 'var(--orange)';
   active.style.background  = 'rgba(255,107,53,0.08)';
+  // Quick toggle icon: 💡 in dark mode (tap to go light), 🌙 in light mode (tap to go dark)
+  const qtBtn = $('theme-quick-toggle');
+  if (qtBtn) qtBtn.textContent = t === 'dark' ? '💡' : '🌙';
+}
+
+function toggleThemeQuick() {
+  setTheme(S.theme === 'dark' ? 'light' : 'dark');
 }
 
 /* ─────────────────────────────
