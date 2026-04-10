@@ -1,0 +1,4323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>PROJECT KINGMAKER</title>
+
+  <!-- ── PWA ─────────────────────────────────────── -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#070707" />
+
+  <!-- iOS / Safari PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="KingMaker" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+
+  <!-- Misc -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="application-name" content="KingMaker" />
+  <meta name="description" content="Elite fitness accountability tracker — discipline, data, dominance." />
+  <!-- ─────────────────────────────────────────────── -->
+  <style>
+    /* ══════════════════════════════════════════
+       TOKENS
+    ══════════════════════════════════════════ */
+    :root {
+      --bg:           #070707;
+      --surface:      #101010;
+      --surface-2:    #181818;
+      --surface-3:    #202020;
+      --border:       #252525;
+      --border-hi:    #363636;
+
+      --text:         #f0f0f0;
+      --text-dim:     #808080;
+      --text-muted:   #404040;
+
+      --red:          #e63946;
+      --red-dim:      #6b1820;
+      --red-glow:     rgba(230,57,70,0.14);
+      --red-bright:   #ff4d5a;
+
+      --green:        #2ec27e;
+      --green-dim:    #103d28;
+      --green-glow:   rgba(46,194,126,0.12);
+
+      --orange:       #ff6b35;
+      --yellow:       #f4a261;
+      --yellow-dim:   #4a2e10;
+
+      --radius:       8px;
+      --radius-lg:    14px;
+      --nav-h:        60px;
+      --safe-b:       env(safe-area-inset-bottom, 0px);
+    }
+
+    [data-theme="light"] {
+      --bg:           #f2f2f2;
+      --surface:      #ffffff;
+      --surface-2:    #ececec;
+      --surface-3:    #e2e2e2;
+      --border:       #d8d8d8;
+      --border-hi:    #c0c0c0;
+
+      --text:         #111111;
+      --text-dim:     #444444;
+      --text-muted:   #888888;
+
+      --red-dim:      #fce8ea;
+      --red-glow:     rgba(230,57,70,0.08);
+
+      --green-dim:    #ddf4ea;
+      --green-glow:   rgba(46,194,126,0.10);
+
+      --yellow-dim:   #fff3e0;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+      font-size: 16px;
+      line-height: 1.4;
+      -webkit-font-smoothing: antialiased;
+      overscroll-behavior: none;
+    }
+
+    /* ══════════════════════════════════════════
+       APP SHELL
+    ══════════════════════════════════════════ */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 430px;
+      margin: 0 auto;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #screen-container {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: calc(var(--nav-h) + var(--safe-b) + 24px);
+    }
+
+    /* ══════════════════════════════════════════
+       BOTTOM NAV
+    ══════════════════════════════════════════ */
+    #bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 430px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      padding-top: 8px;
+      padding-bottom: var(--safe-b);
+      z-index: 100;
+    }
+
+    .nav-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 6px 2px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .nav-btn .n-icon { font-size: 17px; }
+    .nav-btn .n-lbl {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .nav-btn.on { color: var(--text); }
+    .nav-btn.on .n-icon { color: var(--red); }
+
+    /* ══════════════════════════════════════════
+       GATE SCREENS
+    ══════════════════════════════════════════ */
+    .gate {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 28px;
+      text-align: center;
+      max-width: 430px;
+      margin: 0 auto;
+    }
+
+    .gate.off { display: none; }
+
+    .gate-brand {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 52px;
+    }
+
+    .gate-icon { font-size: 52px; margin-bottom: 20px; }
+    .gate-h { font-size: 26px; font-weight: 900; letter-spacing: -0.03em; margin-bottom: 10px; }
+    .gate-p {
+      font-size: 14px;
+      color: var(--text-dim);
+      line-height: 1.65;
+      max-width: 300px;
+      margin-bottom: 36px;
+    }
+
+    /* ══════════════════════════════════════════
+       BUTTONS
+    ══════════════════════════════════════════ */
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 15px 20px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+      font-family: inherit;
+    }
+
+    .btn:active:not(:disabled) { transform: scale(0.98); opacity: 0.85; }
+    .btn-red   { background: var(--red); color: #fff; }
+    .btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+    .btn-dark  { background: var(--red-glow); color: var(--red); border: 1px solid var(--red-dim); }
+    .btn:disabled { opacity: 1; cursor: default; pointer-events: none; }
+    .btn-sm { width: auto; display: inline-block; padding: 9px 16px; font-size: 11px; }
+
+    /* ══════════════════════════════════════════
+       STREAK HEADER
+    ══════════════════════════════════════════ */
+    #streak-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .sh-left .sh-label {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .sh-left .sh-date { font-size: 13px; font-weight: 700; color: var(--text-dim); }
+
+    .sh-right { display: flex; align-items: center; gap: 8px; }
+
+    .sh-streak-val { font-size: 32px; font-weight: 900; letter-spacing: -0.04em; line-height: 1; }
+    .sh-streak-val.hot { color: var(--orange); }
+    .sh-streak-val.cold { color: var(--text-muted); }
+
+    .sh-streak-info .sh-streak-lbl {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .sh-streak-info .sh-streak-best { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+
+    /* ══════════════════════════════════════════
+       COUNTDOWN TIMER
+    ══════════════════════════════════════════ */
+    #timer-banner {
+      margin: 14px 16px 0;
+      border-radius: var(--radius-lg);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      transition: background 0.4s, border-color 0.4s;
+    }
+
+    #timer-banner.warn  { background: var(--yellow-dim); border-color: #6a3e10; }
+    #timer-banner.crit  { background: var(--red-glow); border-color: var(--red-dim); }
+    #timer-banner.expired { background: var(--red-glow); border-color: var(--red-dim); }
+
+    .tb-left .tb-label {
+      font-size: 9px; font-weight: 800; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--text-dim); margin-bottom: 4px;
+    }
+
+    .tb-left .tb-deadline { font-size: 11px; color: var(--text-muted); }
+
+    .tb-time {
+      font-size: 28px; font-weight: 900; letter-spacing: -0.04em;
+      font-variant-numeric: tabular-nums; line-height: 1;
+    }
+
+    #timer-banner.warn  .tb-time { color: var(--yellow); }
+    #timer-banner.crit  .tb-time { color: var(--red-bright); }
+    #timer-banner.expired .tb-time { color: var(--red); font-size: 17px; letter-spacing: 0; }
+
+    /* ══════════════════════════════════════════
+       PROGRESS BAR (Today screen)
+    ══════════════════════════════════════════ */
+    #progress-section { padding: 14px 16px 0; }
+
+    .prog-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+    .prog-label { font-size: 10px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-dim); }
+    .prog-count { font-size: 13px; font-weight: 900; color: var(--text); }
+
+    .prog-track { height: 5px; background: var(--surface-3); border-radius: 999px; overflow: hidden; }
+    .prog-fill { height: 100%; border-radius: 999px; background: var(--green); transition: width 0.4s cubic-bezier(0.4,0,0.2,1); }
+    .prog-fill.zero { background: var(--surface-3); }
+    .prog-fill.fail { background: var(--red); }
+
+    .prog-pips { display: flex; gap: 4px; margin-top: 8px; }
+    .pip { flex: 1; height: 3px; border-radius: 999px; background: var(--surface-3); transition: background 0.3s; }
+    .pip.done  { background: var(--green); }
+    .pip.fail  { background: var(--red); }
+    .pip.today { background: var(--border-hi); }
+
+    /* ══════════════════════════════════════════
+       TASK CARDS
+    ══════════════════════════════════════════ */
+    #task-cards { padding: 14px 16px 0; display: flex; flex-direction: column; gap: 10px; }
+
+    .task-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .task-card.done        { background: #0b1a12; border-color: #1c5e38; }
+    .task-card.failed-card { background: #150a0b; border-color: var(--red-dim); }
+
+    .tc-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px 0;
+    }
+
+    .tc-num-title { display: flex; align-items: center; gap: 10px; }
+
+    .tc-num {
+      font-size: 10px; font-weight: 800; letter-spacing: 0.1em;
+      color: var(--text-muted); background: var(--surface-3);
+      border-radius: 4px; padding: 3px 7px; min-width: 30px; text-align: center;
+    }
+
+    .task-card.done        .tc-num { background: var(--green-dim); color: var(--green); }
+    .task-card.failed-card .tc-num { background: var(--red-glow);  color: var(--red); }
+
+    .tc-title { font-size: 13px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); }
+    .task-card.done .tc-title { color: var(--text-dim); }
+
+    .tc-status {
+      font-size: 9px; font-weight: 800; letter-spacing: 0.12em;
+      text-transform: uppercase; padding: 4px 9px; border-radius: 999px; flex-shrink: 0;
+    }
+
+    .tc-status.pending  { background: var(--surface-3); color: var(--text-dim); }
+    .tc-status.complete { background: var(--green-dim); color: var(--green); }
+    .tc-status.failed   { background: var(--red-glow);  color: var(--red); }
+
+    .tc-body { padding: 10px 16px 14px; }
+    .tc-instruction { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .task-card.done .tc-instruction { color: var(--text-muted); }
+    .tc-detail { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 14px; }
+
+    .tc-set-note { font-size: 11px; color: var(--text-muted); margin-bottom: 10px; font-style: italic; }
+    .tc-set-note a { color: var(--red); text-decoration: none; cursor: pointer; }
+
+    .tc-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 13px 16px; border: none; border-radius: var(--radius);
+      font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+      cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+      font-family: inherit; -webkit-tap-highlight-color: transparent;
+    }
+
+    .tc-btn:active:not(:disabled) { transform: scale(0.99); opacity: 0.85; }
+    .tc-btn.pending-btn  { background: var(--surface-3); color: var(--text); border: 1px solid var(--border-hi); }
+    .tc-btn.pending-btn:hover { border-color: var(--text-dim); }
+    .tc-btn.complete-btn { background: var(--green-dim); color: var(--green); cursor: default; }
+    .tc-btn.failed-btn   { background: var(--red-glow); color: var(--red); cursor: default; }
+    .tc-btn.locked-btn   { background: var(--surface-3); color: var(--text-muted); cursor: not-allowed; }
+    .tc-btn-icon { font-size: 14px; }
+
+    /* ══════════════════════════════════════════
+       DAY RESULT BANNER
+    ══════════════════════════════════════════ */
+    #day-result-banner {
+      margin: 14px 16px 0;
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      display: none;
+      align-items: center;
+      gap: 16px;
+    }
+
+    #day-result-banner.show { display: flex; }
+    #day-result-banner.success { background: var(--green-glow); border: 1px solid #1c5e38; }
+    #day-result-banner.fail    { background: var(--red-glow);   border: 1px solid var(--red-dim); }
+
+    .drb-icon  { font-size: 32px; flex-shrink: 0; }
+    .drb-title { font-size: 15px; font-weight: 800; margin-bottom: 3px; }
+    .drb-sub   { font-size: 12px; color: var(--text-dim); }
+
+    /* ══════════════════════════════════════════
+       SCREEN HEADER
+    ══════════════════════════════════════════ */
+    .screen-hdr {
+      padding: 20px 20px 14px;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0;
+      background: var(--bg); z-index: 10;
+    }
+
+    .screen-hdr .eyebrow {
+      font-size: 9px; font-weight: 800; letter-spacing: 0.2em;
+      text-transform: uppercase; color: var(--red); margin-bottom: 4px;
+    }
+
+    .screen-hdr h1 { font-size: 22px; font-weight: 900; letter-spacing: -0.02em; }
+    .screen-hdr .hdr-sub { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
+
+    .screen-body { padding: 16px 16px; }
+
+    /* ══════════════════════════════════════════
+       CONFIG SCREEN
+    ══════════════════════════════════════════ */
+    .config-block {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 18px; margin-bottom: 14px;
+    }
+
+    .cfg-label { font-size: 9px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; }
+    .cfg-title { font-size: 15px; font-weight: 800; margin-bottom: 4px; }
+    .cfg-desc  { font-size: 12px; color: var(--text-dim); line-height: 1.5; margin-bottom: 14px; }
+
+    .text-input {
+      width: 100%; background: var(--surface-3); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px 14px;
+      color: var(--text); font-size: 14px; font-family: inherit;
+      outline: none; transition: border-color 0.15s; resize: none;
+    }
+
+    .text-input::placeholder { color: var(--text-muted); }
+    .text-input:focus { border-color: var(--red); }
+    .input-row { display: flex; gap: 8px; align-items: stretch; }
+
+    .deadline-display { font-size: 32px; font-weight: 900; letter-spacing: -0.04em; color: var(--red); margin-bottom: 6px; }
+    .deadline-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 14px; }
+
+    /* ══════════════════════════════════════════
+       HISTORY CALENDAR
+    ══════════════════════════════════════════ */
+    .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .cal-nav-label { font-size: 13px; font-weight: 800; color: var(--text-dim); }
+
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 16px; }
+
+    .cal-dh { text-align: center; font-size: 9px; font-weight: 800; letter-spacing: 0.08em; color: var(--text-muted); padding-bottom: 4px; }
+    .cal-d  { aspect-ratio: 1; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); }
+
+    .cal-d.done  { background: var(--green-dim); border-color: #1c5e38; color: var(--green); }
+    .cal-d.fail  { background: var(--red-glow);  border-color: var(--red-dim); color: var(--red); }
+    .cal-d.today { border-color: var(--red); color: var(--text); font-weight: 900; }
+    .cal-d.empty { background: transparent; border-color: transparent; }
+
+    .legend { display: flex; gap: 14px; margin-bottom: 16px; }
+    .leg-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); }
+    .leg-dot { width: 8px; height: 8px; border-radius: 2px; }
+
+    .summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; }
+    .sc-label { font-size: 9px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
+    .sc-val   { font-size: 34px; font-weight: 900; letter-spacing: -0.04em; margin-bottom: 4px; }
+    .sc-sub   { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; }
+
+    .pbar { height: 4px; background: var(--surface-3); border-radius: 999px; overflow: hidden; }
+    .pbar-fill { height: 100%; border-radius: 999px; background: var(--green); transition: width 0.4s; }
+    .pbar-fill.red { background: var(--red); }
+
+    /* ══════════════════════════════════════════
+       ▓▓▓ STATS SCREEN ▓▓▓
+    ══════════════════════════════════════════ */
+
+    /* Top metric row */
+    .stats-top-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .stat-metric {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px 16px 14px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-metric::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 3px;
+      height: 100%;
+      background: var(--border);
+    }
+
+    .stat-metric.primary::before { background: var(--orange); }
+    .stat-metric.accent::before  { background: var(--red); }
+
+    .sm-label {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .sm-value {
+      font-size: 36px;
+      font-weight: 900;
+      letter-spacing: -0.05em;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .stat-metric.primary .sm-value { color: var(--orange); }
+    .stat-metric.accent  .sm-value { color: var(--text); }
+
+    .sm-unit {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* Metric section */
+    .metric-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .ms-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ms-title {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .ms-value-inline {
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+    }
+
+    .ms-action-btn {
+      background: var(--surface-3);
+      border: 1px solid var(--border-hi);
+      border-radius: 4px;
+      color: var(--text-dim);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .ms-action-btn:hover { color: var(--text); border-color: var(--text-muted); }
+
+    .ms-body { padding: 14px 16px; }
+
+    /* Completion rate section */
+    .rate-bar-wrap {
+      height: 6px;
+      background: var(--surface-3);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 8px;
+      margin-bottom: 8px;
+    }
+
+    .rate-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--green);
+      transition: width 0.5s ease;
+    }
+
+    .rate-bar-fill.mid { background: var(--yellow); }
+    .rate-bar-fill.low { background: var(--red); }
+
+    .rate-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* 30-day activity grid */
+    .activity-grid {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 4px;
+    }
+
+    .ag-cell {
+      aspect-ratio: 1;
+      border-radius: 3px;
+    }
+
+    .ag-cell.done   { background: var(--green); opacity: 0.85; }
+    .ag-cell.fail   { background: var(--red);   opacity: 0.7; }
+    .ag-cell.empty  { background: var(--surface-3); }
+    .ag-cell.today  { background: var(--border-hi); outline: 1px solid var(--red); }
+
+    .ag-legend {
+      display: flex;
+      gap: 14px;
+      margin-top: 10px;
+    }
+
+    .ag-leg-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .ag-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+    /* Weight chart */
+    .weight-chart-wrap {
+      position: relative;
+      width: 100%;
+    }
+
+    .weight-chart-wrap svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      overflow: visible;
+    }
+
+    .chart-empty {
+      padding: 28px 0;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .weight-delta-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .weight-delta-val {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .weight-delta-val.down { color: var(--green); }
+    .weight-delta-val.up   { color: var(--red); }
+    .weight-delta-val.flat { color: var(--text-dim); }
+
+    .weight-delta-lbl { font-size: 11px; color: var(--text-muted); }
+
+    .weight-last-entry {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Measurement trend pills */
+    .meas-pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .meas-pill {
+      padding: 5px 11px;
+      border-radius: 20px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: var(--surface-3);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .meas-pill.active {
+      background: rgba(255,107,53,0.10);
+      border-color: #7a3a1e;
+      color: var(--orange);
+    }
+
+    /* Task compliance bars */
+    .compliance-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .compliance-row {
+      display: grid;
+      grid-template-columns: 90px 1fr 36px;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .cr-name {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .cr-bar-track {
+      height: 5px;
+      background: var(--surface-3);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .cr-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.5s ease;
+    }
+
+    .cr-bar-fill.hi  { background: var(--green); }
+    .cr-bar-fill.mid { background: var(--yellow); }
+    .cr-bar-fill.lo  { background: var(--red); }
+
+    .cr-pct {
+      font-size: 11px;
+      font-weight: 800;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cr-pct.hi  { color: var(--green); }
+    .cr-pct.mid { color: var(--yellow); }
+    .cr-pct.lo  { color: var(--red); }
+
+    /* Stats window selector */
+    .window-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 14px;
+    }
+
+    .window-tab {
+      flex: 1;
+      padding: 8px 4px;
+      background: var(--surface-3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      cursor: pointer;
+      text-align: center;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .window-tab.active {
+      background: var(--surface-2);
+      border-color: var(--border-hi);
+      color: var(--text);
+    }
+
+    /* ══════════════════════════════════════════
+       CHECKIN GATE
+    ══════════════════════════════════════════ */
+    .checkin-time {
+      font-size: 52px; font-weight: 900; letter-spacing: -0.06em;
+      font-variant-numeric: tabular-nums; margin: 20px 0;
+    }
+
+    .rules-list {
+      list-style: none; display: flex; flex-direction: column;
+      gap: 10px; margin-bottom: 32px; text-align: left; max-width: 310px;
+    }
+
+    .rules-list li { display: flex; gap: 12px; font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+    .rule-n { font-size: 10px; font-weight: 900; color: var(--red); min-width: 20px; flex-shrink: 0; margin-top: 2px; }
+
+    /* Penalty gate */
+    .pen-box {
+      background: var(--red-glow); border: 1px solid var(--red-dim);
+      border-radius: var(--radius-lg); padding: 20px; margin-bottom: 28px;
+      text-align: left; max-width: 340px; width: 100%;
+    }
+
+    .pen-box-title { font-size: 10px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--red); margin-bottom: 10px; }
+    .pen-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .pen-list li { font-size: 13px; color: var(--text-dim); padding-left: 18px; position: relative; line-height: 1.5; }
+    .pen-list li::before { content: '→'; position: absolute; left: 0; color: var(--red); }
+
+    /* ══════════════════════════════════════════
+       LEVEL BADGE STRIP
+    ══════════════════════════════════════════ */
+    #level-strip {
+      margin: 10px 16px 0;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .level-badge {
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      background: var(--surface-3);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .level-badge.lv2 { background: var(--yellow-dim);          color: var(--yellow); border-color: #6a3e10; }
+    .level-badge.lv3 { background: rgba(255,107,53,0.12);      color: var(--orange); border-color: rgba(255,107,53,0.3); }
+    .level-badge.lv4 { background: var(--green-dim);           color: var(--green);  border-color: #1c5e38; }
+
+    .level-meta { flex: 1; min-width: 0; }
+
+    .level-next-lbl {
+      font-size: 9px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 4px;
+    }
+
+    .level-prog-track {
+      height: 3px;
+      background: var(--surface-3);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .level-prog-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--text-muted);
+      transition: width 0.5s ease;
+    }
+
+    .level-prog-fill.lv2 { background: var(--yellow); }
+    .level-prog-fill.lv3 { background: var(--orange); }
+    .level-prog-fill.lv4 { background: var(--green);  }
+
+    /* ══════════════════════════════════════════
+       ONBOARDING GATE
+    ══════════════════════════════════════════ */
+    #gate-onboarding .ob-screen { display: none; }
+    #gate-onboarding .ob-screen.active {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 380px;
+    }
+
+    .ob-step {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 16px;
+    }
+
+    .ob-q {
+      font-size: 21px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      text-align: center;
+      margin-bottom: 28px;
+      line-height: 1.25;
+    }
+
+    .ob-choices {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      margin-bottom: 24px;
+    }
+
+    .ob-choice {
+      width: 100%;
+      padding: 15px 18px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-dim);
+      font-size: 13px;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+      font-family: inherit;
+      letter-spacing: 0.02em;
+      -webkit-tap-highlight-color: transparent;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+
+    .ob-choice.selected {
+      background: var(--surface-2);
+      border-color: var(--red);
+      color: var(--text);
+    }
+
+    .ob-summary {
+      text-align: left;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 16px;
+      width: 100%;
+      padding: 14px;
+      background: var(--surface-2);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .ob-commitment {
+      background: var(--surface);
+      border: 1px solid var(--border-hi);
+      border-radius: var(--radius-lg);
+      padding: 22px 20px;
+      margin-bottom: 24px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .ob-commit-msg {
+      font-size: 17px;
+      font-weight: 900;
+      letter-spacing: -0.01em;
+      margin-bottom: 18px;
+      line-height: 1.4;
+      color: var(--text);
+    }
+
+    .ob-divider { height: 1px; background: var(--border); margin: 0 0 18px; }
+
+    .ob-commit-rules {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.85;
+    }
+
+    /* ══════════════════════════════════════════
+       WEEKLY REVIEW GATE
+    ══════════════════════════════════════════ */
+    .wr-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px 16px 18px;
+      margin-bottom: 10px;
+      width: 100%;
+    }
+
+    .wr-q-num {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 6px;
+    }
+
+    .wr-q-label {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 14px;
+    }
+
+    .wr-rating-row { display: flex; gap: 6px; }
+
+    .wr-rating-btn {
+      flex: 1;
+      padding: 14px 4px;
+      border: 1px solid var(--border-hi);
+      border-radius: var(--radius);
+      background: var(--surface-3);
+      color: var(--text-dim);
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+      font-family: inherit;
+      text-align: center;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .wr-rating-btn.selected {
+      background: var(--surface-2);
+      border-color: var(--orange);
+      color: var(--orange);
+    }
+
+    /* ══════════════════════════════════════════
+       ENERGY RANGE SLIDER
+    ══════════════════════════════════════════ */
+    .energy-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--surface-3);
+      outline: none;
+      cursor: pointer;
+      margin: 4px 0 12px;
+      display: block;
+    }
+    .energy-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--orange);
+      cursor: pointer;
+      border: 3px solid var(--bg);
+      box-shadow: 0 0 0 1px var(--orange);
+    }
+    .energy-slider::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--orange);
+      cursor: pointer;
+      border: 3px solid var(--bg);
+    }
+    .energy-val-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .energy-scale-lbl {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .energy-current-val {
+      font-size: 30px;
+      font-weight: 900;
+      color: var(--orange);
+      line-height: 1;
+    }
+    .energy-current-unit {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    /* Adherence buttons (same row as rating but green accent) */
+    .adherence-row { display: flex; gap: 6px; }
+    .adherence-btn {
+      flex: 1;
+      padding: 14px 4px;
+      border: 1px solid var(--border-hi);
+      border-radius: var(--radius);
+      background: var(--surface-3);
+      color: var(--text-dim);
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+      font-family: inherit;
+      text-align: center;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .adherence-btn.selected {
+      background: var(--green-dim);
+      border-color: #1c5e38;
+      color: var(--green);
+    }
+
+    /* Body measurements grid */
+    .measure-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .measure-item { display: flex; flex-direction: column; gap: 5px; }
+    .measure-label {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .measure-input-wrap {
+      display: flex;
+      align-items: center;
+      background: var(--surface-3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .measure-input-wrap input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 10px 10px;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 700;
+      font-family: inherit;
+      outline: none;
+      min-width: 0;
+    }
+    .measure-input-wrap input:focus { outline: none; }
+    .measure-unit-tag {
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--text-muted);
+      padding: 0 8px;
+      letter-spacing: 0.06em;
+      flex-shrink: 0;
+    }
+
+    /* ══════════════════════════════════════════
+       DAILY CHECK-IN FORM GATE
+    ══════════════════════════════════════════ */
+
+    /* Scrollable variant of .gate */
+    .gate-form {
+      justify-content: flex-start;
+      align-items: center;
+      overflow-y: auto;
+      padding-top: 44px;
+      padding-bottom: 44px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .gate-form .ci-inner {
+      width: 100%;
+      max-width: 380px;
+    }
+
+    .ci-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px 16px 18px;
+      margin-bottom: 10px;
+    }
+
+    .ci-q-num {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 6px;
+    }
+
+    .ci-q-label {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 14px;
+      line-height: 1.3;
+    }
+
+    /* Yes / No buttons */
+    .ci-yn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .ci-yn-btn {
+      padding: 15px 10px;
+      border: 1px solid var(--border-hi);
+      border-radius: var(--radius);
+      background: var(--surface-3);
+      color: var(--text-dim);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .ci-yn-btn.selected-yes {
+      background: var(--green-dim);
+      color: var(--green);
+      border-color: #1c5e38;
+    }
+
+    .ci-yn-btn.selected-no {
+      background: var(--red-glow);
+      color: var(--red);
+      border-color: var(--red-dim);
+    }
+
+    /* Energy level buttons */
+    .ci-energy-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .ci-energy-btn {
+      flex: 1;
+      padding: 14px 4px;
+      border: 1px solid var(--border-hi);
+      border-radius: var(--radius);
+      background: var(--surface-3);
+      color: var(--text-dim);
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+      font-family: inherit;
+      text-align: center;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .ci-energy-btn.selected {
+      background: var(--surface-2);
+      border-color: var(--orange);
+      color: var(--orange);
+    }
+
+    .ci-energy-scale {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+    }
+
+    .ci-energy-scale span {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* Textarea in form */
+    .ci-textarea {
+      width: 100%;
+      min-height: 76px;
+    }
+
+    /* Form error */
+    .ci-error {
+      display: none;
+      color: var(--red);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 10px 14px;
+      background: var(--red-glow);
+      border-radius: var(--radius);
+      border: 1px solid var(--red-dim);
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    /* Optional badge */
+    .ci-opt {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-left: 6px;
+    }
+
+    /* ══════════════════════════════════════════
+       DIVIDER / UTIL
+    ══════════════════════════════════════════ */
+    .divider { height: 1px; background: var(--border); margin: 20px 0; }
+    .sec-label { font-size: 9px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; }
+    .hidden { display: none !important; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* ══════════════════════════════════════════
+       TOAST
+    ══════════════════════════════════════════ */
+    #toast {
+      position: fixed;
+      bottom: calc(var(--nav-h) + 16px + var(--safe-b));
+      left: 50%;
+      transform: translateX(-50%) translateY(12px);
+      background: var(--surface-2);
+      border: 1px solid var(--border-hi);
+      border-radius: 999px;
+      padding: 9px 18px;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.04em;
+      color: var(--text); white-space: nowrap;
+      opacity: 0; transition: opacity 0.2s, transform 0.2s;
+      z-index: 500; pointer-events: none;
+    }
+
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ══════════════════════════════════════════
+       MODAL
+    ══════════════════════════════════════════ */
+    #overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      z-index: 400; display: flex; align-items: flex-end; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+
+    #overlay.open { opacity: 1; pointer-events: all; }
+
+    #modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      padding: 24px 20px calc(24px + var(--safe-b));
+      width: 100%; max-width: 430px;
+      transform: translateY(100%); transition: transform 0.25s ease;
+    }
+
+    #overlay.open #modal { transform: translateY(0); }
+    .modal-h { font-size: 16px; font-weight: 900; margin-bottom: 14px; }
+    .modal-btns { display: flex; gap: 10px; margin-top: 16px; }
+
+    /* ── Print / PDF report ── */
+    #print-report { display: none; }
+
+    @media print {
+      body > *     { display: none !important; }
+      #print-report {
+        display: block !important;
+        position: static !important;
+        margin: 0; padding: 0;
+        background: #fff;
+        color: #000;
+      }
+      @page { margin: 14mm 16mm; size: A4; }
+    }
+
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ══════════ GATE: ONBOARDING ══════════ -->
+  <div id="gate-onboarding" class="gate gate-form off">
+
+    <!-- Step 1 — Name -->
+    <div class="ob-screen active" id="ob-s1">
+      <div class="gate-brand" style="margin-bottom:24px;">Project KingMaker</div>
+      <div class="ob-step">Step 1 of 5</div>
+      <div class="ob-q">What is your name?</div>
+      <input type="text" id="ob-name" class="text-input"
+        placeholder="Your full name" maxlength="60"
+        oninput="onboardCheckName()"
+        style="width:100%;font-size:18px;font-weight:700;margin-bottom:20px;" />
+      <button class="btn btn-red" onclick="onboardNext(2)" id="ob-s1-btn"
+        disabled style="max-width:380px;width:100%;">CONTINUE →</button>
+    </div>
+
+    <!-- Step 2 — Goal -->
+    <div class="ob-screen" id="ob-s2">
+      <div class="gate-brand" style="margin-bottom:24px;">Project KingMaker</div>
+      <div class="ob-step">Step 2 of 5</div>
+      <div class="ob-q">What is your goal?</div>
+      <textarea id="ob-goal" class="text-input ci-textarea" rows="5"
+        placeholder="State your goal clearly. Be specific. Minimum 20 characters."
+        maxlength="500" oninput="onboardCheckGoal()"
+        style="width:100%;margin-bottom:8px;"></textarea>
+      <div id="ob-goal-count" style="font-size:10px;color:var(--text-muted);margin-bottom:20px;text-align:right;width:100%;">0 / 500</div>
+      <button class="btn btn-red" onclick="onboardNext(3)" id="ob-s2-btn"
+        disabled style="max-width:380px;width:100%;">CONTINUE →</button>
+    </div>
+
+    <!-- Step 3 — Weight + Height -->
+    <div class="ob-screen" id="ob-s3">
+      <div class="gate-brand" style="margin-bottom:24px;">Project KingMaker</div>
+      <div class="ob-step">Step 3 of 5</div>
+      <div class="ob-q">What is your<br>weight and height?</div>
+      <div style="margin-bottom:16px;">
+        <div class="wr-q-label" style="margin-bottom:8px;">Body Weight</div>
+        <div style="display:flex;align-items:center;background:var(--surface-3);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
+          <input type="number" id="ob-weight" placeholder="e.g. 84"
+            step="0.1" min="30" max="300" oninput="onboardCheckBody()"
+            style="flex:1;background:transparent;border:none;padding:14px;color:var(--text);font-size:20px;font-weight:700;outline:none;" />
+          <span style="font-size:12px;font-weight:800;color:var(--text-muted);padding:0 14px;flex-shrink:0;">kg</span>
+        </div>
+      </div>
+      <div style="margin-bottom:20px;">
+        <div class="wr-q-label" style="margin-bottom:8px;">Height</div>
+        <input type="text" id="ob-height" class="text-input"
+          placeholder="e.g. 175 cm or 5'10&quot;"
+          maxlength="20" oninput="onboardCheckBody()"
+          style="width:100%;font-size:16px;font-weight:700;" />
+      </div>
+      <div id="ob-body-error" class="ci-error" style="display:none;margin-bottom:12px;"></div>
+      <button class="btn btn-red" onclick="onboardNext(4)" id="ob-s3-btn"
+        disabled style="max-width:380px;width:100%;">CONTINUE →</button>
+    </div>
+
+    <!-- Step 4 — Measurements -->
+    <div class="ob-screen" id="ob-s4">
+      <div class="gate-brand" style="margin-bottom:16px;">Project KingMaker</div>
+      <div class="ob-step">Step 4 of 5</div>
+      <div class="ob-q" style="margin-bottom:6px;">Body Measurements <span class="ci-opt">Optional</span></div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.5;">Baseline measurements for long-term progress tracking.</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button class="adherence-btn selected" id="ob-munit-in" onclick="obSetMUnit('in')" style="flex:none;padding:8px 18px;font-size:13px;">in</button>
+        <button class="adherence-btn" id="ob-munit-cm" onclick="obSetMUnit('cm')" style="flex:none;padding:8px 18px;font-size:13px;">cm</button>
+      </div>
+      <div class="measure-grid" style="margin-bottom:20px;">
+        <div class="measure-item">
+          <div class="measure-label">Arms</div>
+          <div class="measure-input-wrap">
+            <input type="number" id="ob-m-arms" placeholder="—" step="0.1" min="0" max="99" />
+            <span class="measure-unit-tag ob-munit-tag">in</span>
+          </div>
+        </div>
+        <div class="measure-item">
+          <div class="measure-label">Chest</div>
+          <div class="measure-input-wrap">
+            <input type="number" id="ob-m-chest" placeholder="—" step="0.1" min="0" max="99" />
+            <span class="measure-unit-tag ob-munit-tag">in</span>
+          </div>
+        </div>
+        <div class="measure-item">
+          <div class="measure-label">Abdomen</div>
+          <div class="measure-input-wrap">
+            <input type="number" id="ob-m-abdomen" placeholder="—" step="0.1" min="0" max="99" />
+            <span class="measure-unit-tag ob-munit-tag">in</span>
+          </div>
+        </div>
+        <div class="measure-item">
+          <div class="measure-label">Waist</div>
+          <div class="measure-input-wrap">
+            <input type="number" id="ob-m-waist" placeholder="—" step="0.1" min="0" max="99" />
+            <span class="measure-unit-tag ob-munit-tag">in</span>
+          </div>
+        </div>
+        <div class="measure-item">
+          <div class="measure-label">Thighs</div>
+          <div class="measure-input-wrap">
+            <input type="number" id="ob-m-thighs" placeholder="—" step="0.1" min="0" max="99" />
+            <span class="measure-unit-tag ob-munit-tag">in</span>
+          </div>
+        </div>
+        <div class="measure-item">
+          <div class="measure-label">Calves</div>
+          <div class="measure-input-wrap">
+            <input type="number" id="ob-m-calves" placeholder="—" step="0.1" min="0" max="99" />
+            <span class="measure-unit-tag ob-munit-tag">in</span>
+          </div>
+        </div>
+        <div class="measure-item">
+          <div class="measure-label">Hips</div>
+          <div class="measure-input-wrap">
+            <input type="number" id="ob-m-hips" placeholder="—" step="0.1" min="0" max="99" />
+            <span class="measure-unit-tag ob-munit-tag">in</span>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-red" onclick="onboardNext(5)"
+        style="max-width:380px;width:100%;">CONTINUE →</button>
+    </div>
+
+    <!-- Step 5 — Commitment -->
+    <div class="ob-screen" id="ob-s5">
+      <div class="gate-brand" style="margin-bottom:16px;">Project KingMaker</div>
+      <div class="ob-step" style="margin-bottom:20px;">Step 5 of 5 — Commitment</div>
+      <div class="ob-summary" id="ob-summary-box"></div>
+      <div class="ob-commitment">
+        <div class="ob-commit-msg">"This system does not adapt to you.<br>You will adapt to it."</div>
+        <div class="ob-divider"></div>
+        <div class="ob-commit-rules">
+          There are no accommodations.<br>
+          No flexibility. No grace period.<br>
+          No extensions. No excuses.<br>
+          Either you execute, or you fail.<br>
+          That is the only choice available.
+        </div>
+      </div>
+      <button class="btn btn-red" onclick="submitOnboarding()" style="max-width:380px;width:100%;">I ACCEPT THESE TERMS</button>
+      <div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:14px;line-height:1.65;letter-spacing:0.04em;">
+        THERE IS NO BACK BUTTON FROM THIS POINT.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════ GATE: WEEKLY REVIEW ══════════ -->
+  <div id="gate-weekly-review" class="gate gate-form off">
+    <div class="ci-inner">
+
+      <div class="gate-brand" style="margin-bottom:20px;">Project KingMaker</div>
+      <div style="text-align:center;margin-bottom:22px;">
+        <div style="font-size:38px;margin-bottom:10px;">▦</div>
+        <div class="gate-h" style="font-size:20px;">Weekly Review</div>
+        <div id="wr-header-sub" style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;"></div>
+      </div>
+
+      <!-- 7-day performance summary -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:10px;">
+        <div style="font-size:9px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">Last 8 Tracked Days</div>
+        <div id="wr-summary-stats" style="font-size:13px;color:var(--text-dim);line-height:1.7;"></div>
+      </div>
+
+      <!-- Q1: Body weight (required) -->
+      <div class="wr-section">
+        <div class="wr-q-num">01</div>
+        <div class="wr-q-label">Current body weight <span style="color:var(--red);font-size:11px;">REQUIRED</span></div>
+        <div class="input-row" style="align-items:center;">
+          <input type="number" id="wr-weight" class="text-input"
+            placeholder="e.g., 185" step="0.1" min="50" max="700"
+            style="flex:1;font-size:18px;font-weight:700;" />
+          <span id="wr-weight-unit" style="font-size:13px;font-weight:800;color:var(--text-dim);padding:0 14px;flex-shrink:0;">kg</span>
+        </div>
+      </div>
+
+      <!-- Q2: Progress rating -->
+      <div class="wr-section">
+        <div class="wr-q-num">02</div>
+        <div class="wr-q-label">Rate your execution this week</div>
+        <div class="wr-rating-row">
+          <button class="wr-rating-btn" data-val="1" onclick="wrSetRating(1)">1</button>
+          <button class="wr-rating-btn" data-val="2" onclick="wrSetRating(2)">2</button>
+          <button class="wr-rating-btn" data-val="3" onclick="wrSetRating(3)">3</button>
+          <button class="wr-rating-btn" data-val="4" onclick="wrSetRating(4)">4</button>
+          <button class="wr-rating-btn" data-val="5" onclick="wrSetRating(5)">5</button>
+        </div>
+        <div class="ci-energy-scale" style="margin-top:6px;">
+          <span style="font-size:9px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);">Poor</span>
+          <span style="font-size:9px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);">Excellent</span>
+        </div>
+      </div>
+
+      <!-- Q3: Missed days reason (shown if failures exist) -->
+      <div class="wr-section" id="wr-q3-section" style="display:none;">
+        <div class="wr-q-num">03</div>
+        <div class="wr-q-label">Account for missed days <span style="color:var(--red);font-size:11px;">REQUIRED</span></div>
+        <textarea id="wr-missed-reason" class="text-input ci-textarea" rows="3"
+          placeholder="Account for each missed day specifically. No generalizations." maxlength="400"></textarea>
+      </div>
+
+      <!-- Q4: Body measurements (optional) -->
+      <div class="wr-section">
+        <div class="wr-q-num">04</div>
+        <div class="wr-q-label">Body measurements <span class="ci-opt">Optional</span></div>
+        <div class="measure-grid">
+          <div class="measure-item">
+            <div class="measure-label">Arms</div>
+            <div class="measure-input-wrap">
+              <input type="number" id="wr-m-arms" placeholder="—" step="0.1" min="0" max="99" />
+              <span class="measure-unit-tag" id="wr-munit">in</span>
+            </div>
+          </div>
+          <div class="measure-item">
+            <div class="measure-label">Chest</div>
+            <div class="measure-input-wrap">
+              <input type="number" id="wr-m-chest" placeholder="—" step="0.1" min="0" max="99" />
+              <span class="measure-unit-tag">in</span>
+            </div>
+          </div>
+          <div class="measure-item">
+            <div class="measure-label">Abdomen</div>
+            <div class="measure-input-wrap">
+              <input type="number" id="wr-m-abdomen" placeholder="—" step="0.1" min="0" max="99" />
+              <span class="measure-unit-tag">in</span>
+            </div>
+          </div>
+          <div class="measure-item">
+            <div class="measure-label">Waist</div>
+            <div class="measure-input-wrap">
+              <input type="number" id="wr-m-waist" placeholder="—" step="0.1" min="0" max="99" />
+              <span class="measure-unit-tag">in</span>
+            </div>
+          </div>
+          <div class="measure-item">
+            <div class="measure-label">Thighs</div>
+            <div class="measure-input-wrap">
+              <input type="number" id="wr-m-thighs" placeholder="—" step="0.1" min="0" max="99" />
+              <span class="measure-unit-tag">in</span>
+            </div>
+          </div>
+          <div class="measure-item">
+            <div class="measure-label">Calves</div>
+            <div class="measure-input-wrap">
+              <input type="number" id="wr-m-calves" placeholder="—" step="0.1" min="0" max="99" />
+              <span class="measure-unit-tag">in</span>
+            </div>
+          </div>
+          <div class="measure-item">
+            <div class="measure-label">Hips</div>
+            <div class="measure-input-wrap">
+              <input type="number" id="wr-m-hips" placeholder="—" step="0.1" min="0" max="99" />
+              <span class="measure-unit-tag">in</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Error message -->
+      <div class="ci-error" id="wr-error"></div>
+
+      <button class="btn btn-red" onclick="submitWeeklyReview()" style="margin-top:4px;">SUBMIT REVIEW</button>
+      <div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:16px;line-height:1.65;letter-spacing:0.04em;">
+        MANDATORY. THE NEXT WEEK CANNOT BEGIN UNTIL THIS IS SUBMITTED.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════ GATE: PENALTY ══════════ -->
+  <div id="gate-penalty" class="gate off">
+    <div class="gate-brand">Project KingMaker</div>
+    <div class="gate-icon">✖</div>
+    <div class="gate-h" id="gp-title">Day Failed.</div>
+    <div class="gate-p" id="gp-body">You did not complete all required tasks. This is recorded.</div>
+    <div class="pen-box">
+      <div class="pen-box-title">Recorded Consequence</div>
+      <ul class="pen-list" id="gp-list">
+        <li>Streak reset to zero</li>
+        <li>Day marked as failed in history</li>
+      </ul>
+    </div>
+    <button class="btn btn-dark" style="max-width:340px;" onclick="ackPenalty()">I ACKNOWLEDGE THE FAILURE</button>
+  </div>
+
+  <!-- ══════════ GATE: CHECK-IN ══════════ -->
+  <div id="gate-checkin" class="gate off">
+    <div class="gate-brand">Project KingMaker</div>
+    <div class="gate-icon">◉</div>
+    <div class="gate-h">Daily Check-In</div>
+    <div class="checkin-time" id="ci-time">--:--</div>
+    <div class="gate-p">Confirm presence. Execution starts now.</div>
+    <ul class="rules-list">
+      <li><span class="rule-n">01</span><span>All 5 tasks must be completed by the deadline.</span></li>
+      <li><span class="rule-n">02</span><span>One incomplete task marks the entire day as failed.</span></li>
+      <li><span class="rule-n">03</span><span>No extensions. No exceptions. No excuses.</span></li>
+      <li><span class="rule-n">04</span><span>Partial completion is failure.</span></li>
+    </ul>
+    <button class="btn btn-red" style="max-width:340px;" onclick="doCheckin()">
+      CHECK IN — <span id="ci-date"></span>
+    </button>
+  </div>
+
+  <!-- ══════════ GATE: DAILY CHECK-IN FORM ══════════ -->
+  <div id="gate-ci-form" class="gate gate-form off">
+    <div class="ci-inner">
+
+      <!-- Brand + heading -->
+      <div class="gate-brand" style="margin-bottom:20px;">Project KingMaker</div>
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="font-size:40px;margin-bottom:10px;">◉</div>
+        <div class="gate-h" style="font-size:22px;">Daily Check-In</div>
+        <div id="ci-form-date" style="font-size:13px;color:var(--text-muted);margin-top:4px;font-weight:600;"></div>
+      </div>
+
+      <!-- Q01: All tasks done? -->
+      <div class="ci-section">
+        <div class="ci-q-num">01</div>
+        <div class="ci-q-label">Did you execute all tasks?</div>
+        <div class="ci-yn-row">
+          <button class="ci-yn-btn" id="ci-btn-yes" onclick="ciToggleQ1(true)">YES</button>
+          <button class="ci-yn-btn" id="ci-btn-no"  onclick="ciToggleQ1(false)">NO</button>
+        </div>
+      </div>
+
+      <!-- Q02: Failure reason (shown only if NO) -->
+      <div class="ci-section" id="ci-q2-section" style="display:none;">
+        <div class="ci-q-num">02</div>
+        <div class="ci-q-label">Reason for failure <span style="color:var(--red);font-size:12px;">REQUIRED</span></div>
+        <textarea id="ci-fail-reason" class="text-input ci-textarea"
+          placeholder="State the reason. Be specific. No rationalizations." maxlength="300"></textarea>
+      </div>
+
+      <!-- Q03: Body weight -->
+      <div class="ci-section">
+        <div class="ci-q-num">03</div>
+        <div class="ci-q-label">Body weight <span class="ci-opt">Optional</span></div>
+        <div class="input-row" style="align-items:center;">
+          <input type="number" id="ci-weight" class="text-input"
+            placeholder="e.g., 185" step="0.1" min="50" max="700"
+            style="flex:1;font-size:20px;font-weight:800;letter-spacing:-0.02em;" />
+          <span id="ci-weight-unit" style="font-size:13px;font-weight:800;color:var(--text-dim);padding:0 14px;flex-shrink:0;">kg</span>
+        </div>
+      </div>
+
+      <!-- Q04: Energy level (range slider → progress bar) -->
+      <div class="ci-section">
+        <div class="ci-q-num">04</div>
+        <div class="ci-q-label">Energy level today</div>
+        <input type="range" id="ci-energy-slider" class="energy-slider"
+          min="1" max="5" step="1" value="3"
+          oninput="updateEnergySlider(this.value)" />
+        <div class="energy-val-row">
+          <span class="energy-scale-lbl">Low</span>
+          <div style="text-align:center;">
+            <span class="energy-current-val" id="ci-energy-display">3</span>
+            <span class="energy-current-unit"> / 5</span>
+          </div>
+          <span class="energy-scale-lbl">High</span>
+        </div>
+      </div>
+
+      <!-- Q05: Adherence (1-5 buttons) -->
+      <div class="ci-section">
+        <div class="ci-q-num">05</div>
+        <div class="ci-q-label">Adherence <span style="color:var(--red);font-size:12px;">REQUIRED</span></div>
+        <div class="adherence-row">
+          <button class="adherence-btn" data-val="1" onclick="ciSetAdherence(1)">1</button>
+          <button class="adherence-btn" data-val="2" onclick="ciSetAdherence(2)">2</button>
+          <button class="adherence-btn" data-val="3" onclick="ciSetAdherence(3)">3</button>
+          <button class="adherence-btn" data-val="4" onclick="ciSetAdherence(4)">4</button>
+          <button class="adherence-btn" data-val="5" onclick="ciSetAdherence(5)">5</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;">
+          <span style="font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);">Poor</span>
+          <span style="font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);">Perfect</span>
+        </div>
+      </div>
+
+      <!-- Q06: What went good? -->
+      <div class="ci-section">
+        <div class="ci-q-num">06</div>
+        <div class="ci-q-label">What went well? <span class="ci-opt">Optional</span></div>
+        <textarea id="ci-went-good" class="text-input ci-textarea" rows="3"
+          placeholder="Note what worked. Be specific." maxlength="400"></textarea>
+      </div>
+
+      <!-- Q07: What did not go well? -->
+      <div class="ci-section">
+        <div class="ci-q-num">07</div>
+        <div class="ci-q-label">What did not go well? <span class="ci-opt">Optional</span></div>
+        <textarea id="ci-went-bad" class="text-input ci-textarea" rows="3"
+          placeholder="Note what failed or fell short. Be honest." maxlength="400"></textarea>
+      </div>
+
+      <!-- Validation error -->
+      <div class="ci-error" id="ci-form-error"></div>
+
+      <!-- Submit -->
+      <button class="btn btn-red" onclick="submitDailyCheckin()" style="margin-top:4px;">
+        SUBMIT CHECK-IN
+      </button>
+
+      <div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:16px;line-height:1.65;letter-spacing:0.04em;">
+        THIS CHECK-IN IS REQUIRED BEFORE THE DEADLINE.<br>NOT SUBMITTED = DAY FAILED.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════ SCREENS ══════════ -->
+  <div id="screen-container">
+
+    <!-- ▓▓▓▓▓ TODAY ▓▓▓▓▓ -->
+    <div id="screen-today" class="screen active">
+      <div id="streak-header">
+        <div class="sh-left">
+          <div class="sh-label">Project KingMaker</div>
+          <div class="sh-date" id="sh-date-label">—</div>
+        </div>
+        <div class="sh-right">
+          <div class="sh-streak-info" style="text-align:right;">
+            <div class="sh-streak-lbl">Streak</div>
+            <div class="sh-streak-best" id="sh-best">Best: 0</div>
+          </div>
+          <div class="sh-streak-val cold" id="sh-streak">0</div>
+          <div id="sh-flame" style="font-size:26px;">❄️</div>
+        </div>
+      </div>
+
+      <div id="timer-banner">
+        <div class="tb-left">
+          <div class="tb-label">Time Remaining</div>
+          <div class="tb-deadline" id="tb-deadline">Deadline: 11:00 PM</div>
+        </div>
+        <div class="tb-time" id="tb-time">--:--:--</div>
+      </div>
+
+      <!-- Level badge strip -->
+      <div id="level-strip">
+        <span class="level-badge lv1" id="level-badge">UNDISCIPLINED</span>
+        <div class="level-meta">
+          <div class="level-next-lbl" id="level-next-lbl"></div>
+          <div class="level-prog-track">
+            <div class="level-prog-fill lv1" id="level-prog-fill" style="width:0%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="day-result-banner">
+        <div class="drb-icon" id="drb-icon">—</div>
+        <div>
+          <div class="drb-title" id="drb-title">—</div>
+          <div class="drb-sub"   id="drb-sub">—</div>
+        </div>
+      </div>
+
+      <div id="progress-section">
+        <div class="prog-top">
+          <div class="prog-label">Tasks Complete</div>
+          <div class="prog-count" id="prog-count">0 / 5</div>
+        </div>
+        <div class="prog-track">
+          <div class="prog-fill" id="prog-fill" style="width:0%"></div>
+        </div>
+        <div class="prog-pips" id="prog-pips">
+          <div class="pip"></div><div class="pip"></div><div class="pip"></div>
+          <div class="pip"></div><div class="pip"></div>
+        </div>
+      </div>
+
+      <div id="task-cards"></div>
+      <div style="height:8px;"></div>
+    </div>
+
+    <!-- ▓▓▓▓▓ CONFIG ▓▓▓▓▓ -->
+    <div id="screen-config" class="screen">
+      <div class="screen-hdr">
+        <div class="eyebrow">Configuration</div>
+        <h1>Setup</h1>
+        <div class="hdr-sub">Set your daily parameters. These apply immediately.</div>
+      </div>
+      <div class="screen-body">
+
+        <div class="config-block">
+          <div class="cfg-label">Appearance</div>
+          <div class="cfg-title">Theme</div>
+          <div class="cfg-desc">Choose your preferred display mode.</div>
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <button id="theme-btn-dark"  class="btn btn-ghost" onclick="setTheme('dark')"
+              style="flex:1;gap:6px;display:flex;align-items:center;justify-content:center;">🌙 Dark</button>
+            <button id="theme-btn-light" class="btn btn-ghost" onclick="setTheme('light')"
+              style="flex:1;gap:6px;display:flex;align-items:center;justify-content:center;">☀️ Light</button>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="config-block">
+          <div class="cfg-label">Today's Discipline Task</div>
+          <div class="cfg-title">Discipline Task</div>
+          <div class="cfg-desc">Assign today's discipline requirement. If not set, the task cannot be marked complete.</div>
+          <textarea id="discipline-input" class="text-input" rows="2"
+            placeholder="e.g., Cold shower. Read 20 pages. No social media."
+            maxlength="120"></textarea>
+          <div style="margin-top:8px;">
+            <button class="btn btn-red btn-sm" onclick="saveDisciplineTask()">SAVE TASK</button>
+          </div>
+        </div>
+
+        <div class="config-block">
+          <div class="cfg-label">Daily Step Target</div>
+          <div class="cfg-title">Step Goal</div>
+          <div class="cfg-desc">Minimum daily step count required.</div>
+          <div class="input-row">
+            <input type="number" id="step-goal-input" class="text-input"
+              placeholder="e.g., 10000" min="1000" max="50000" step="500" />
+            <button class="btn btn-red btn-sm" onclick="saveStepGoal()" style="white-space:nowrap;">SAVE</button>
+          </div>
+        </div>
+
+        <div class="config-block">
+          <div class="cfg-label">Daily Deadline</div>
+          <div class="cfg-title">Task Deadline</div>
+          <div class="cfg-desc">All tasks must be marked complete before this time. After the deadline, incomplete tasks are locked.</div>
+          <div class="deadline-display" id="cfg-deadline-display">11:00 PM</div>
+          <div class="deadline-sub">Select hour below</div>
+          <div class="input-row">
+            <select id="deadline-hour-select" class="text-input" style="flex:1;">
+              <option value="18">6:00 PM</option>
+              <option value="19">7:00 PM</option>
+              <option value="20">8:00 PM</option>
+              <option value="21" selected>9:00 PM</option>
+              <option value="22">10:00 PM</option>
+              <option value="23">11:00 PM</option>
+            </select>
+            <button class="btn btn-red btn-sm" onclick="saveDeadline()">SET</button>
+          </div>
+        </div>
+
+        <div class="config-block">
+          <div class="cfg-label">Weight Unit</div>
+          <div class="cfg-title">Body Weight Unit</div>
+          <div class="cfg-desc">Unit used for body weight tracking in Stats.</div>
+          <div class="input-row">
+            <select id="weight-unit-select" class="text-input" style="flex:1;">
+              <option value="kg">kg</option>
+              <option value="lbs">lbs</option>
+            </select>
+            <button class="btn btn-red btn-sm" onclick="saveWeightUnit()">SET</button>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="sec-label">Danger Zone</div>
+        <button class="btn btn-ghost" onclick="confirmResetDay()" style="margin-bottom:8px;">Reset Today's Progress</button>
+        <button class="btn btn-ghost" onclick="confirmFullReset()" style="margin-bottom:8px;">Full Data Reset</button>
+        <button class="btn btn-ghost" onclick="seedDemoData()" style="border-color:var(--orange);color:var(--orange);">⚡ Seed Demo Data</button>
+
+      </div>
+    </div>
+
+    <!-- ▓▓▓▓▓ HISTORY ▓▓▓▓▓ -->
+    <div id="screen-history" class="screen">
+      <div class="screen-hdr">
+        <div class="eyebrow">Record</div>
+        <h1 id="hist-month-h">—</h1>
+        <div class="hdr-sub">Every day is recorded. Nothing is forgotten.</div>
+      </div>
+      <div class="screen-body">
+        <div class="cal-nav">
+          <button class="btn btn-ghost btn-sm" onclick="histPrev()">← Prev</button>
+          <span class="cal-nav-label" id="hist-nav-lbl">—</span>
+          <button class="btn btn-ghost btn-sm" onclick="histNext()">Next →</button>
+        </div>
+        <div class="legend">
+          <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div>Complete</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div>Failed</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--border-hi)"></div>No data</div>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div class="summary-card">
+          <div class="sc-label">Month Summary</div>
+          <div class="sc-val" id="hist-rate">—</div>
+          <div class="sc-sub" id="hist-sub">No data</div>
+          <div class="pbar"><div class="pbar-fill" id="hist-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ▓▓▓▓▓ STATS ▓▓▓▓▓ -->
+    <div id="screen-stats" class="screen">
+      <div class="screen-hdr">
+        <div class="eyebrow">Performance</div>
+        <h1>Stats</h1>
+        <div class="hdr-sub" id="stats-window-label">All time</div>
+      </div>
+      <div class="screen-body">
+
+        <!-- Time window selector -->
+        <div class="window-tabs">
+          <button class="window-tab active" onclick="setStatsWindow(7,this)">7 Days</button>
+          <button class="window-tab" onclick="setStatsWindow(30,this)">30 Days</button>
+          <button class="window-tab" onclick="setStatsWindow(90,this)">90 Days</button>
+          <button class="window-tab" onclick="setStatsWindow(0,this)">All</button>
+        </div>
+
+        <!-- Row 1: Streak metrics -->
+        <div class="stats-top-row">
+          <div class="stat-metric primary">
+            <div class="sm-label">Current Streak</div>
+            <div class="sm-value" id="stats-streak">0</div>
+            <div class="sm-unit">days</div>
+          </div>
+          <div class="stat-metric accent">
+            <div class="sm-label">Longest Streak</div>
+            <div class="sm-value" id="stats-best">0</div>
+            <div class="sm-unit">days</div>
+          </div>
+        </div>
+
+        <!-- Completion Rate -->
+        <div class="metric-section">
+          <div class="ms-header">
+            <div class="ms-title">Completion Rate</div>
+            <div class="ms-value-inline" id="stats-rate-val">—</div>
+          </div>
+          <div class="ms-body">
+            <div class="rate-bar-wrap">
+              <div class="rate-bar-fill" id="stats-rate-bar" style="width:0%"></div>
+            </div>
+            <div class="rate-sub" id="stats-rate-sub">—</div>
+          </div>
+        </div>
+
+        <!-- 30-day Activity Grid -->
+        <div class="metric-section">
+          <div class="ms-header">
+            <div class="ms-title">Activity Record</div>
+            <div id="activity-count" style="font-size:11px; color:var(--text-muted);">—</div>
+          </div>
+          <div class="ms-body">
+            <div class="activity-grid" id="activity-grid"></div>
+            <div class="ag-legend">
+              <div class="ag-leg-item"><div class="ag-dot" style="background:var(--green)"></div>Complete</div>
+              <div class="ag-leg-item"><div class="ag-dot" style="background:var(--red); opacity:.7"></div>Failed</div>
+              <div class="ag-leg-item"><div class="ag-dot" style="background:var(--surface-3)"></div>No data</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Body Weight Trend -->
+        <div class="metric-section">
+          <div class="ms-header">
+            <div class="ms-title">Body Weight — <span id="stats-weight-unit">kg</span></div>
+            <button class="ms-action-btn" onclick="openWeightLog()">+ LOG</button>
+          </div>
+          <div class="ms-body">
+            <div class="weight-chart-wrap" id="weight-chart-wrap"></div>
+            <div id="weight-delta-row" class="weight-delta-row hidden">
+              <div class="weight-delta-val" id="weight-delta-val">—</div>
+              <div class="weight-delta-lbl" id="weight-delta-lbl">—</div>
+            </div>
+            <div class="weight-last-entry" id="weight-last-entry"></div>
+          </div>
+        </div>
+
+        <!-- Measurements Trend -->
+        <div class="metric-section">
+          <div class="ms-header">
+            <div class="ms-title">Measurements — <span id="stats-meas-unit">in</span></div>
+          </div>
+          <div class="ms-body">
+            <div class="meas-pill-row" id="meas-pill-row"></div>
+            <div class="weight-chart-wrap" id="meas-chart-wrap"></div>
+            <div class="weight-delta-row hidden" id="meas-delta-row">
+              <div class="weight-delta-val" id="meas-delta-val">—</div>
+              <div class="weight-delta-lbl" id="meas-delta-lbl">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task Compliance -->
+        <div class="metric-section">
+          <div class="ms-header">
+            <div class="ms-title">Task Compliance</div>
+            <div style="font-size:10px; color:var(--text-muted);" id="compliance-window-label">—</div>
+          </div>
+          <div class="ms-body">
+            <div class="compliance-list" id="compliance-list"></div>
+          </div>
+        </div>
+
+        <!-- Reports -->
+        <div class="metric-section">
+          <div class="ms-header">
+            <div class="ms-title">Progress Reports</div>
+          </div>
+          <div class="ms-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+              <button class="btn btn-ghost" onclick="printReport(7,'Weekly')">Weekly</button>
+              <button class="btn btn-ghost" onclick="printReport(30,'Monthly')">Monthly</button>
+              <button class="btn btn-ghost" onclick="printReport(90,'Quarterly')">Quarterly</button>
+              <button class="btn btn-ghost" onclick="printReport(180,'Half-Yearly')">Half-Yearly</button>
+              <button class="btn btn-ghost" onclick="printReport(365,'Yearly')" style="grid-column:span 2;">Yearly</button>
+            </div>
+            <div style="font-size:10px;color:var(--text-muted);line-height:1.6;">
+              Opens browser print dialog. Select <b style="color:var(--text-dim);">Save as PDF</b> to export.
+            </div>
+          </div>
+        </div>
+
+        <!-- Coach Feedback -->
+        <div class="metric-section">
+          <div class="ms-header">
+            <div class="ms-title">Coach Feedback</div>
+            <button class="ms-action-btn" onclick="openCoachFeedbackModal()">+ LOG</button>
+          </div>
+          <div class="ms-body">
+            <div id="coach-feedback-list"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /screen-container -->
+
+  <!-- ══════════ BOTTOM NAV ══════════ -->
+  <nav id="bottom-nav">
+    <button class="nav-btn on" id="nav-today" onclick="goto('today')">
+      <span class="n-icon">⬛</span>
+      <span class="n-lbl">Today</span>
+    </button>
+    <button class="nav-btn" id="nav-config" onclick="goto('config')">
+      <span class="n-icon">⚙</span>
+      <span class="n-lbl">Config</span>
+    </button>
+    <button class="nav-btn" id="nav-history" onclick="goto('history')">
+      <span class="n-icon">▦</span>
+      <span class="n-lbl">History</span>
+    </button>
+    <button class="nav-btn" id="nav-stats" onclick="goto('stats')">
+      <span class="n-icon">◈</span>
+      <span class="n-lbl">Stats</span>
+    </button>
+  </nav>
+
+</div><!-- /app -->
+
+<div id="toast"></div>
+
+<div id="overlay" onclick="maybeCloseModal(event)">
+  <div id="modal">
+    <div class="modal-h" id="modal-h"></div>
+    <div id="modal-b"></div>
+    <div class="modal-btns" id="modal-btns"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     ENGINE
+══════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ─────────────────────────────
+   LEVEL DEFINITIONS
+───────────────────────────────*/
+const LEVELS = [
+  { id:1, name:'UNDISCIPLINED', cls:'lv1' },
+  { id:2, name:'CONSISTENT',   cls:'lv2' },
+  { id:3, name:'RELENTLESS',   cls:'lv3' },
+  { id:4, name:'ELITE',        cls:'lv4' },
+];
+
+/* ─────────────────────────────
+   TASK DEFINITIONS
+───────────────────────────────*/
+const TASKS = [
+  { id:'training',  num:'01', title:'TRAINING/RUNNING', instruction:'Complete your full training or running session.', detail:'No shortened sessions. No substitutions. No rest day excuses.' },
+  { id:'steps',     num:'02', title:'STUDY FOR 30 MINUTES',           instruction:'Keep exploring new ideas',             detail:'Sedentary days are failed days. Move.' },
+  { id:'nutrition', num:'03', title:'NUTRITION',       instruction:'Execute your nutrition protocol exactly.', detail:'No deviations. No cheat meals. No rationalizations.' },
+  { id:'discipline',num:'04', title:'DISCIPLINE TASK', instruction:'',                                        detail:"Complete today's assigned discipline task in full." },
+  { id:'checkin',   num:'05', title:'DAILY CHECK-IN',  instruction:'Complete the daily accountability report',  detail:'Report energy level, task execution, and body weight. Cannot be skipped.' },
+];
+
+/* ─────────────────────────────
+   STATE
+───────────────────────────────*/
+const KEY = 'rf4';
+
+let S = {
+  days:            {},      // { "YYYY-MM-DD": DayRecord }
+  streak:          0,
+  bestStreak:      0,
+  totalComplete:   0,
+  totalFailed:     0,
+  disciplineTask:  '',
+  stepGoal:        10000,
+  deadlineHour:    21,
+  pendingPenalty:  null,
+  weights:         {},      // { "YYYY-MM-DD": number }
+  weightUnit:      'kg',
+  measurements:    {},      // { "YYYY-MM-DD": { arms, chest, abdomen, waist, thighs, calves, hips } }
+  measurementUnit: 'in',
+  // Onboarding
+  name:            '',
+  goal:            '',
+  height:          '',
+  onboardingDone:  false,
+  onboardingFails: '',
+  onboardingReason:'',
+  // Weekly review
+  pendingReview:   false,
+  reviewCount:     0,
+  weeklyReviews:   [],
+  // Coach feedback
+  coachFeedback:   [],   // [{ date: "YYYY-MM-DD", reviewNum: n, text: "..." }]
+  // Appearance
+  theme:           'dark',
+};
+
+let statsWindow = 30; // days (0 = all time)
+
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(_) {} }
+function load() {
+  try { const r = localStorage.getItem(KEY); if (r) S = { ...S, ...JSON.parse(r) }; } catch(_) {}
+}
+
+/* ─────────────────────────────
+   DATE UTILS
+───────────────────────────────*/
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+}
+
+function p2(n) { return String(n).padStart(2,'0'); }
+function dkFrom(y,m,d) { return `${y}-${p2(m+1)}-${p2(d)}`; }
+
+function fmtDate(k) {
+  const [y,m,d] = k.split('-').map(Number);
+  return new Date(y,m-1,d).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+}
+
+function shortDate(k) {
+  const [y,m,d] = k.split('-').map(Number);
+  return new Date(y,m-1,d).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}).toUpperCase();
+}
+
+function daysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return dkFrom(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function weekDates() {
+  const now = new Date(), dow = now.getDay();
+  const mon = new Date(now);
+  mon.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
+  return Array.from({length:7},(_,i)=>{
+    const d = new Date(mon); d.setDate(mon.getDate()+i);
+    return dkFrom(d.getFullYear(), d.getMonth(), d.getDate());
+  });
+}
+
+/* ─────────────────────────────
+   DEADLINE
+───────────────────────────────*/
+function getDeadlineMs() {
+  const d = new Date(); d.setHours(S.deadlineHour, 0, 0, 0); return d.getTime();
+}
+
+function isPastDeadline() { return Date.now() >= getDeadlineMs(); }
+
+function deadlineStr() {
+  const h = S.deadlineHour, ampm = h >= 12 ? 'PM' : 'AM', h12 = h > 12 ? h - 12 : h;
+  return `${h12}:00 ${ampm}`;
+}
+
+/* ─────────────────────────────
+   FAILURE CHECK
+───────────────────────────────*/
+function checkPastFailures() {
+  const today = todayStr();
+  Object.keys(S.days).forEach(k => {
+    if (k >= today) return;
+    if (S.days[k].status === 'pending') markFailed(k, false);
+  });
+  const yest = new Date(); yest.setDate(yest.getDate()-1);
+  const yk = dkFrom(yest.getFullYear(), yest.getMonth(), yest.getDate());
+  const anyHistory = Object.keys(S.days).some(k => k < yk);
+  if (anyHistory && !S.days[yk]) {
+    S.days[yk] = { status:'failed', checkedIn:false, checkInTime:null, completedIds:[], completedAt:null, disciplineText:'' };
+    S.totalFailed++;
+    if (S.streak > 0) S.streak = 0;
+  }
+  save();
+}
+
+function markFailed(k, setPenalty = true) {
+  const d = S.days[k];
+  if (!d || d.status === 'failed') return;
+  const prev = S.streak;
+  d.status = 'failed'; S.streak = 0; S.totalFailed++;
+  save();
+  if (setPenalty && prev > 0) { S.pendingPenalty = { date: k, streakLost: prev }; save(); }
+}
+
+/* ─────────────────────────────
+   WATCHER
+───────────────────────────────*/
+// Timer ticker — updates the countdown display only.
+// Auto-fail on deadline is intentionally removed (not viable in PWA/offline context).
+// Past failures are detected on next app open via checkPastFailures().
+function startTimer() {
+  setInterval(updateTimerBanner, 1000);
+}
+
+/* ─────────────────────────────
+   BOOT
+   Gate priority:
+   1. Onboarding (first launch)
+   2. Penalty gate
+   3. Weekly review
+   4. Morning check-in
+   5. App
+───────────────────────────────*/
+function boot() {
+  load();
+  applyTheme();
+  checkPastFailures();
+
+  // 1. First-launch onboarding
+  if (!S.onboardingDone) { showOnboarding(); return; }
+
+  const today = todayStr();
+
+  // 2. Penalty gate
+  if (S.pendingPenalty) { showGatePenalty(S.pendingPenalty); return; }
+
+  // 3. Weekly review (must be submitted before new day can start)
+  checkWeeklyReview();
+  if (S.pendingReview) { showGateWeeklyReview(); return; }
+
+  // 4. Morning check-in
+  if (!S.days[today] || !S.days[today].checkedIn) {
+    S.days[today] = S.days[today] || freshDay();
+    save();
+    showGateCheckin();
+    return;
+  }
+
+  launchApp();
+}
+
+function freshDay() {
+  return {
+    status:        'pending',
+    checkedIn:     false,
+    checkInTime:   null,
+    completedIds:  [],
+    completedAt:   null,
+    disciplineText: S.disciplineTask || '',
+    // Daily check-in form fields
+    ciFormDone:    false,    // true once form submitted
+    ciAllDone:     null,     // true = all tasks done, false = some missed
+    ciEnergy:      3,        // 1–5 (slider, defaults to 3)
+    ciAdherence:   null,     // 1–5, required
+    ciFailReason:  '',       // required if ciAllDone === false
+    ciWentGood:    '',       // optional reflection
+    ciWentBad:     '',       // optional reflection
+  };
+}
+
+function launchApp() { startTimer(); renderAll(); }
+
+/* ─────────────────────────────
+   GATES
+───────────────────────────────*/
+function showGatePenalty(p) {
+  const g = $('gate-penalty');
+  $('gp-title').textContent = `Day Failed — ${fmtDate(p.date)}`;
+  $('gp-body').textContent  = `All required tasks were not completed on ${fmtDate(p.date)}. This record is permanent.`;
+  $('gp-list').innerHTML = `
+    <li>Streak reset from ${p.streakLost} day${p.streakLost===1?'':'s'} to zero</li>
+    <li>${fmtDate(p.date)} marked failed in history</li>
+    <li>Acknowledge this failure to continue</li>`;
+  g.classList.remove('off');
+}
+
+function ackPenalty() {
+  S.pendingPenalty = null; save();
+  $('gate-penalty').classList.add('off');
+  boot();
+}
+
+let ciTimer;
+function showGateCheckin() {
+  const g = $('gate-checkin');
+  $('ci-date').textContent = shortDate(todayStr());
+  function tick() {
+    const t = new Date();
+    $('ci-time').textContent = `${p2(t.getHours())}:${p2(t.getMinutes())}`;
+  }
+  tick(); ciTimer = setInterval(tick, 1000);
+  g.classList.remove('off');
+}
+
+function doCheckin() {
+  clearInterval(ciTimer);
+  const today = todayStr();
+  S.days[today].checkedIn   = true;
+  S.days[today].checkInTime = Date.now();
+  // Task 05 (DAILY CHECK-IN) is completed via the evening check-in form — not here.
+  save();
+  $('gate-checkin').classList.add('off');
+  launchApp();
+}
+
+/* ─────────────────────────────
+   TASK LOGIC
+───────────────────────────────*/
+function completeTask(taskId) {
+  const today = todayStr(), day = S.days[today];
+  if (!day || day.status !== 'pending') return;
+  if (isPastDeadline()) return;
+
+  // Task 05 opens the check-in form instead of direct completion
+  if (taskId === 'checkin') {
+    if (day.ciFormDone) {
+      // Form was submitted but task not recorded yet — recover gracefully
+      if (!day.completedIds.includes('checkin')) {
+        day.completedIds.push('checkin');
+        if (day.completedIds.length === TASKS.length) sealDay();
+        else { save(); renderToday(); }
+      }
+      return;
+    }
+    showGateDailyCheckin();
+    return;
+  }
+
+  if (taskId === 'discipline' && !day.disciplineText && !S.disciplineTask) {
+    showToast('Set a discipline task in Config first.'); return;
+  }
+  if (day.completedIds.includes(taskId)) return;
+  day.completedIds.push(taskId);
+  if (day.completedIds.length === TASKS.length) sealDay();
+  else { save(); renderToday(); showToast('Task marked complete.'); }
+}
+
+function sealDay() {
+  const today = todayStr(), day = S.days[today];
+  day.status = 'complete'; day.completedAt = Date.now();
+  S.streak++; if (S.streak > S.bestStreak) S.bestStreak = S.streak;
+  S.totalComplete++;
+  save(); renderToday(); showToast(`Day complete. Streak: ${S.streak}`);
+}
+
+/* ─────────────────────────────
+   WEIGHT LOGGING
+───────────────────────────────*/
+function openWeightLog() {
+  const today = todayStr();
+  const current = S.weights[today] ? S.weights[today] : '';
+  openModal('Log Body Weight',
+    `<p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.5;">
+       Enter today's weight in ${S.weightUnit}. One entry per day.
+     </p>
+     <div class="input-row">
+       <input type="number" id="weight-input" class="text-input"
+         placeholder="e.g., ${S.weightUnit==='kg'?'84':'185'}"
+         value="${current}" step="0.1" min="50" max="500" style="font-size:20px;font-weight:700;" />
+     </div>`,
+    [
+      { label: 'SAVE', cls: 'btn-red', fn: () => {
+          const v = parseFloat($('weight-input')?.value);
+          if (!v || v < 50) { showToast('Enter a valid weight.'); return; }
+          S.weights[today] = v;
+          save(); closeModal(); renderStats();
+          showToast(`Weight logged: ${v} ${S.weightUnit}`);
+        }
+      },
+      { label: 'Cancel', cls: 'btn-ghost', fn: closeModal },
+    ]
+  );
+  setTimeout(()=>{ const inp = $('weight-input'); if (inp) { inp.focus(); inp.select(); } }, 100);
+}
+
+/* ─────────────────────────────
+   STATS HELPERS
+───────────────────────────────*/
+function getWindowDays() {
+  const today = todayStr();
+  const allKeys = Object.keys(S.days).sort();
+  if (statsWindow === 0) return allKeys.filter(k => k <= today);
+  const cutoff = daysAgo(statsWindow - 1);
+  return allKeys.filter(k => k >= cutoff && k <= today);
+}
+
+function getCompletionStats() {
+  const keys = getWindowDays();
+  const complete = keys.filter(k => S.days[k]?.status === 'complete').length;
+  const failed   = keys.filter(k => S.days[k]?.status === 'failed').length;
+  const tracked  = complete + failed;
+  const rate     = tracked > 0 ? Math.round((complete / tracked) * 100) : null;
+  return { complete, failed, tracked, rate, total: keys.length };
+}
+
+function getTaskCompliance() {
+  const keys = getWindowDays().filter(k => S.days[k]?.status !== 'pending');
+  const tracked = keys.length;
+  return TASKS.map(t => {
+    const done = keys.filter(k => {
+      const d = S.days[k];
+      return d && d.completedIds && d.completedIds.includes(t.id);
+    }).length;
+    const pct = tracked > 0 ? Math.round((done / tracked) * 100) : null;
+    return { id: t.id, title: t.title, done, tracked, pct };
+  });
+}
+
+function getLast14Weights() {
+  const result = [];
+  for (let i = 13; i >= 0; i--) {
+    const k = daysAgo(i);
+    if (S.weights[k] != null) result.push({ date: k, w: S.weights[k] });
+  }
+  return result;
+}
+
+function buildWeightSVG(entries) {
+  if (entries.length < 2) return null;
+
+  const VW = 360, VH = 110;
+  const padL = 42, padR = 12, padT = 14, padB = 30;
+  const pw = VW - padL - padR;
+  const ph = VH - padT - padB;
+
+  const ws = entries.map(e => e.w);
+  const minW = Math.min(...ws);
+  const maxW = Math.max(...ws);
+  const range = maxW - minW || 0.5;
+
+  const pts = entries.map((e, i) => ({
+    x: padL + (i / (entries.length - 1)) * pw,
+    y: padT + ph - ((e.w - minW) / range) * ph,
+    ...e,
+  }));
+
+  // Build smooth polyline
+  const polyPts = pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+
+  // Area fill path
+  const areaPath = `M${pts[0].x.toFixed(1)},${(padT+ph).toFixed(1)} ` +
+    pts.map(p => `L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') +
+    ` L${pts[pts.length-1].x.toFixed(1)},${(padT+ph).toFixed(1)} Z`;
+
+  // Y axis labels (3 labels: min, mid, max)
+  const midW = (minW + maxW) / 2;
+  const yLabels = [
+    { w: maxW, y: padT },
+    { w: midW, y: padT + ph / 2 },
+    { w: minW, y: padT + ph },
+  ];
+
+  // X axis labels — show first, mid, last date
+  const xDates = [];
+  if (entries.length > 0) {
+    const idxs = [0, Math.floor((entries.length-1)/2), entries.length-1];
+    idxs.forEach(i => {
+      if (i < entries.length) {
+        const [,m,d] = entries[i].date.split('-').map(Number);
+        xDates.push({ x: pts[i].x, label: `${m}/${d}` });
+      }
+    });
+  }
+
+  const yLblHtml = yLabels.map(l =>
+    `<text x="${padL-6}" y="${l.y.toFixed(1)}" text-anchor="end" dominant-baseline="middle"
+      fill="#505050" font-size="9" font-family="system-ui,sans-serif">${l.w.toFixed(1)}</text>`
+  ).join('');
+
+  const xLblHtml = xDates.map(l =>
+    `<text x="${l.x.toFixed(1)}" y="${(VH-6).toFixed(1)}" text-anchor="middle"
+      fill="#505050" font-size="9" font-family="system-ui,sans-serif">${l.label}</text>`
+  ).join('');
+
+  const dotsHtml = pts.map((p, i) => {
+    const isLast = i === pts.length - 1;
+    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isLast ? 4 : 2.5}"
+      fill="${isLast ? '#2ec27e' : '#3a3a3a'}" stroke="${isLast ? '#0b1a12' : 'none'}" stroke-width="2"/>`;
+  }).join('');
+
+  // Horizontal guide lines
+  const guideLines = yLabels.map(l =>
+    `<line x1="${padL}" y1="${l.y.toFixed(1)}" x2="${VW-padR}" y2="${l.y.toFixed(1)}"
+      stroke="#1e1e1e" stroke-width="1"/>`
+  ).join('');
+
+  return `
+    <svg viewBox="0 0 ${VW} ${VH}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible;">
+      ${guideLines}
+      <defs>
+        <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#2ec27e" stop-opacity="0.12"/>
+          <stop offset="100%" stop-color="#2ec27e" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="${areaPath}" fill="url(#wg)"/>
+      <polyline points="${polyPts}" fill="none" stroke="#2ec27e" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+      ${yLblHtml}
+      ${xLblHtml}
+      ${dotsHtml}
+    </svg>
+  `;
+}
+
+/* ─────────────────────────────
+   MEASUREMENTS TREND
+───────────────────────────────*/
+const MEAS_FIELDS = [
+  { key:'arms',    label:'ARMS'    },
+  { key:'chest',   label:'CHEST'   },
+  { key:'abdomen', label:'ABDOMEN' },
+  { key:'waist',   label:'WAIST'   },
+  { key:'thighs',  label:'THIGHS'  },
+  { key:'calves',  label:'CALVES'  },
+  { key:'hips',    label:'HIPS'    },
+];
+let _activeMeasField = 'waist';
+
+function getMeasurementEntries(field) {
+  if (!S.measurements) return [];
+  return Object.keys(S.measurements)
+    .sort()
+    .map(date => ({ date, v: S.measurements[date]?.[field] }))
+    .filter(e => e.v != null && e.v > 0);
+}
+
+function buildMeasurementSVG(entries) {
+  if (entries.length < 2) return null;
+  const VW = 360, VH = 110;
+  const padL = 38, padR = 12, padT = 14, padB = 30;
+  const pw = VW - padL - padR, ph = VH - padT - padB;
+
+  const vs   = entries.map(e => e.v);
+  const minV = Math.min(...vs), maxV = Math.max(...vs);
+  const range = maxV - minV || 0.5;
+
+  const pts = entries.map((e, i) => ({
+    x: padL + (i / (entries.length - 1)) * pw,
+    y: padT + ph - ((e.v - minV) / range) * ph,
+    ...e,
+  }));
+
+  const polyPts  = pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const areaPath = `M${pts[0].x.toFixed(1)},${(padT+ph).toFixed(1)} ` +
+    pts.map(p => `L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') +
+    ` L${pts[pts.length-1].x.toFixed(1)},${(padT+ph).toFixed(1)} Z`;
+
+  const midV    = (minV + maxV) / 2;
+  const yLabels = [
+    { v: maxV, y: padT },
+    { v: midV, y: padT + ph / 2 },
+    { v: minV, y: padT + ph },
+  ];
+
+  const rawIdxs = entries.length <= 3
+    ? entries.map((_, i) => i)
+    : [0, Math.floor((entries.length - 1) / 2), entries.length - 1];
+  const xDates  = [...new Set(rawIdxs)].map(i => {
+    const [,m,d] = entries[i].date.split('-').map(Number);
+    return { x: pts[i].x, label: `${m}/${d}` };
+  });
+
+  const yLblHtml = yLabels.map(l =>
+    `<text x="${padL-5}" y="${l.y.toFixed(1)}" text-anchor="end" dominant-baseline="middle"
+      fill="#505050" font-size="9" font-family="system-ui,sans-serif">${l.v.toFixed(1)}</text>`
+  ).join('');
+
+  const xLblHtml = xDates.map(l =>
+    `<text x="${l.x.toFixed(1)}" y="${(VH-6).toFixed(1)}" text-anchor="middle"
+      fill="#505050" font-size="9" font-family="system-ui,sans-serif">${l.label}</text>`
+  ).join('');
+
+  const dotsHtml = pts.map((p, i) => {
+    const isLast = i === pts.length - 1;
+    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isLast ? 4 : 2.5}"
+      fill="${isLast ? '#ff6b35' : '#3a3a3a'}" stroke="${isLast ? '#2a1a0e' : 'none'}" stroke-width="2"/>`;
+  }).join('');
+
+  const guideLines = yLabels.map(l =>
+    `<line x1="${padL}" y1="${l.y.toFixed(1)}" x2="${VW-padR}" y2="${l.y.toFixed(1)}"
+      stroke="#1e1e1e" stroke-width="1"/>`
+  ).join('');
+
+  return `
+    <svg viewBox="0 0 ${VW} ${VH}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible;">
+      ${guideLines}
+      <defs>
+        <linearGradient id="mg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ff6b35" stop-opacity="0.12"/>
+          <stop offset="100%" stop-color="#ff6b35" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="${areaPath}" fill="url(#mg)"/>
+      <polyline points="${polyPts}" fill="none" stroke="#ff6b35" stroke-width="1.5"
+        stroke-linejoin="round" stroke-linecap="round"/>
+      ${yLblHtml}
+      ${xLblHtml}
+      ${dotsHtml}
+    </svg>
+  `;
+}
+
+function selectMeasurementPill(field) {
+  _activeMeasField = field;
+  document.querySelectorAll('.meas-pill').forEach(p =>
+    p.classList.toggle('active', p.dataset.field === field)
+  );
+  const unit    = S.measurementUnit || 'in';
+  const label   = MEAS_FIELDS.find(f => f.key === field)?.label || field.toUpperCase();
+  const entries = getMeasurementEntries(field);
+  const wrap    = $('meas-chart-wrap');
+  const dRow    = $('meas-delta-row');
+  const dVal    = $('meas-delta-val');
+  const dLbl    = $('meas-delta-lbl');
+
+  if (entries.length < 2) {
+    wrap.innerHTML = `<div class="chart-empty">No data for ${label} yet.<br>Measurements are logged at each weekly review.</div>`;
+    dRow.classList.add('hidden');
+    return;
+  }
+
+  wrap.innerHTML = buildMeasurementSVG(entries) || '';
+
+  const first = entries[0].v, last = entries[entries.length - 1].v;
+  const delta = last - first, absDelta = Math.abs(delta).toFixed(1);
+  const pct   = ((delta / first) * 100).toFixed(1);
+
+  dRow.classList.remove('hidden');
+  if (Math.abs(delta) < 0.05) {
+    dVal.textContent = '→ No change';
+    dVal.className   = 'weight-delta-val flat';
+    dLbl.textContent = `Over ${entries.length} measurements`;
+  } else {
+    const dir = delta < 0 ? '↓' : '↑';
+    dVal.textContent = `${dir} ${absDelta} ${unit}  (${delta < 0 ? '' : '+'}${pct}%)`;
+    dVal.className   = `weight-delta-val ${delta < 0 ? 'down' : 'up'}`;
+    dLbl.textContent = `${entries[0].date.slice(5)} → ${entries[entries.length-1].date.slice(5)} · ${entries.length} entries`;
+  }
+}
+
+/* ─────────────────────────────
+   LEVEL SYSTEM
+───────────────────────────────*/
+function computeLevel() {
+  const keys     = Object.keys(S.days).filter(k => S.days[k]?.status !== 'pending');
+  const tracked  = keys.length;
+  const complete = keys.filter(k => S.days[k].status === 'complete').length;
+  const rate     = tracked > 0 ? (complete / tracked) * 100 : 0;
+  const str      = S.streak;
+
+  // ELITE: 45+ streak AND >90% all-time compliance
+  if (str >= 45 && rate >= 90) {
+    return {
+      level:    LEVELS[3],
+      nextLevel: null,
+      pct:      100,
+      label:    'Maximum level. Maintain.',
+    };
+  }
+
+  // RELENTLESS: 21+ streak → progress toward ELITE
+  if (str >= 21) {
+    const strPct  = (str / 45) * 100;
+    const ratePct = (rate / 90) * 100;
+    const pct     = Math.min(Math.min(strPct, ratePct), 99);
+    return {
+      level:    LEVELS[2],
+      nextLevel: LEVELS[3],
+      pct,
+      label:    `${str}/45 streak · ${rate.toFixed(0)}%/90% compliance → ELITE`,
+    };
+  }
+
+  // CONSISTENT: 7+ streak → progress toward RELENTLESS
+  if (str >= 7) {
+    return {
+      level:    LEVELS[1],
+      nextLevel: LEVELS[2],
+      pct:      Math.min((str / 21) * 100, 99),
+      label:    `${str}/21 day streak → RELENTLESS`,
+    };
+  }
+
+  // UNDISCIPLINED: default → progress toward CONSISTENT
+  return {
+    level:    LEVELS[0],
+    nextLevel: LEVELS[1],
+    pct:      Math.min((str / 7) * 100, 99),
+    label:    str === 0 ? '0/7 day streak → CONSISTENT' : `${str}/7 day streak → CONSISTENT`,
+  };
+}
+
+function renderLevel() {
+  const { level, pct, label } = computeLevel();
+  const badge = $('level-badge');
+  const fill  = $('level-prog-fill');
+  const lbl   = $('level-next-lbl');
+  if (!badge) return;
+  badge.textContent = level.name;
+  badge.className   = `level-badge ${level.cls}`;
+  fill.style.width  = pct + '%';
+  fill.className    = `level-prog-fill ${level.cls}`;
+  lbl.textContent   = label;
+}
+
+/* ─────────────────────────────
+   ONBOARDING
+───────────────────────────────*/
+let _obMUnit = 'in';
+
+function showOnboarding() {
+  document.querySelectorAll('.ob-screen').forEach(s => s.classList.remove('active'));
+  $('ob-s1').classList.add('active');
+  _obMUnit = S.measurementUnit || 'in';
+  if ($('ob-name'))   $('ob-name').value = '';
+  if ($('ob-goal'))   { $('ob-goal').value = ''; $('ob-goal-count').textContent = '0 / 500'; }
+  if ($('ob-weight')) $('ob-weight').value = '';
+  if ($('ob-height')) $('ob-height').value = '';
+  ['arms','chest','abdomen','waist','thighs','calves','hips'].forEach(m => {
+    const el = $(`ob-m-${m}`); if (el) el.value = '';
+  });
+  if ($('ob-s1-btn')) $('ob-s1-btn').disabled = true;
+  if ($('ob-body-error')) $('ob-body-error').style.display = 'none';
+  obSetMUnit(_obMUnit);
+  $('gate-onboarding').classList.remove('off');
+}
+
+function onboardCheckName() {
+  const v = $('ob-name').value.trim();
+  $('ob-s1-btn').disabled = v.length < 2;
+}
+
+function onboardCheckGoal() {
+  const txt = $('ob-goal').value;
+  $('ob-goal-count').textContent = `${txt.length} / 500`;
+  $('ob-s2-btn').disabled = txt.trim().length < 20;
+}
+
+function onboardCheckBody() {
+  const w = parseFloat($('ob-weight').value);
+  const h = ($('ob-height').value || '').trim();
+  $('ob-s3-btn').disabled = !(w >= 30 && w <= 300 && h.length >= 2);
+  $('ob-body-error').style.display = 'none';
+}
+
+function obSetMUnit(unit) {
+  _obMUnit = unit;
+  const inBtn = $('ob-munit-in'), cmBtn = $('ob-munit-cm');
+  if (inBtn) inBtn.classList.toggle('selected', unit === 'in');
+  if (cmBtn) cmBtn.classList.toggle('selected', unit === 'cm');
+  document.querySelectorAll('.ob-munit-tag').forEach(el => el.textContent = unit);
+}
+
+function onboardNext(step) {
+  document.querySelectorAll('.ob-screen').forEach(s => s.classList.remove('active'));
+
+  if (step === 2) {
+    $('ob-s2').classList.add('active');
+    $('ob-s2-btn').disabled = true;
+    setTimeout(() => $('ob-goal')?.focus(), 150);
+    return;
+  }
+
+  if (step === 3) {
+    $('ob-s3').classList.add('active');
+    $('ob-body-error').style.display = 'none';
+    setTimeout(() => $('ob-weight')?.focus(), 150);
+    return;
+  }
+
+  if (step === 4) {
+    const w = parseFloat($('ob-weight').value);
+    const h = ($('ob-height').value || '').trim();
+    if (!(w >= 30 && w <= 300)) {
+      $('ob-body-error').textContent = 'Enter a valid weight (30–300 kg).';
+      $('ob-body-error').style.display = 'block';
+      $('ob-s3').classList.add('active'); return;
+    }
+    if (h.length < 2) {
+      $('ob-body-error').textContent = "Enter your height (e.g. 175 cm or 5'10\").";
+      $('ob-body-error').style.display = 'block';
+      $('ob-s3').classList.add('active'); return;
+    }
+    $('ob-s4').classList.add('active');
+    return;
+  }
+
+  if (step === 5) {
+    const name   = ($('ob-name')?.value   || '').trim();
+    const goal   = ($('ob-goal')?.value   || '').trim();
+    const weight = $('ob-weight')?.value  || '';
+    const height = ($('ob-height')?.value || '').trim();
+    $('ob-summary-box').innerHTML = `
+      <div style="font-size:9px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">Your Record — Logged</div>
+      <div style="font-size:12px;color:var(--text-dim);line-height:1.9;">
+        Name: <span style="color:var(--text);font-weight:700;">${name}</span><br>
+        Weight: <span style="color:var(--text);font-weight:700;">${weight} kg</span>&nbsp;·&nbsp;Height: <span style="color:var(--text);font-weight:700;">${height}</span><br>
+        Goal: "<span style="color:var(--text);font-weight:600;">${goal.length > 120 ? goal.substring(0,120)+'…' : goal}</span>"
+      </div>`;
+    $('ob-s5').classList.add('active');
+  }
+}
+
+function submitOnboarding() {
+  const name   = ($('ob-name')?.value   || '').trim();
+  const goal   = ($('ob-goal')?.value   || '').trim();
+  const wVal   = parseFloat($('ob-weight')?.value);
+  const height = ($('ob-height')?.value || '').trim();
+
+  // Save initial weight
+  if (wVal && wVal >= 30) S.weights[todayStr()] = wVal;
+
+  // Save baseline measurements
+  const mFields = ['arms','chest','abdomen','waist','thighs','calves','hips'];
+  const mData   = {};
+  mFields.forEach(f => {
+    const v = parseFloat($(`ob-m-${f}`)?.value);
+    if (v && v > 0) mData[f] = v;
+  });
+  if (Object.keys(mData).length > 0) {
+    if (!S.measurements) S.measurements = {};
+    S.measurements[todayStr()] = mData;
+  }
+
+  S.name            = name;
+  S.goal            = goal;
+  S.height          = height;
+  S.measurementUnit = _obMUnit;
+  S.onboardingDone  = true;
+  S.onboardingFails  = '';
+  S.onboardingReason = goal;
+  save();
+  $('gate-onboarding').classList.add('off');
+  boot();
+}
+
+/* ─────────────────────────────
+   WEEKLY REVIEW
+───────────────────────────────*/
+let _wrRating = null;
+
+function checkWeeklyReview() {
+  if (S.pendingReview) return;
+  const tracked  = Object.keys(S.days).filter(k => S.days[k]?.status !== 'pending').length;
+  const reviews  = S.reviewCount || 0;
+  const due      = Math.floor(tracked / 8);
+  if (due > reviews) { S.pendingReview = true; save(); }
+}
+
+function getLastNTracked(n) {
+  return Object.keys(S.days)
+    .filter(k => S.days[k]?.status !== 'pending')
+    .sort()
+    .slice(-n);
+}
+
+function showGateWeeklyReview() {
+  _wrRating = null;
+  $('wr-weight-unit').textContent = S.weightUnit;
+  $('wr-weight').value = '';
+  $('wr-missed-reason').value = '';
+  $('wr-error').style.display = 'none';
+  document.querySelectorAll('.wr-rating-btn').forEach(b => b.classList.remove('selected'));
+
+  // Reset measurement fields and unit label
+  ['arms','chest','abdomen','waist','thighs','calves','hips'].forEach(m => {
+    const el = $(`wr-m-${m}`); if (el) el.value = '';
+  });
+  const mUnit = $('wr-munit'); if (mUnit) mUnit.textContent = S.measurementUnit || 'in';
+
+  // Compute last 8 tracked days stats
+  const keys   = getLastNTracked(8);
+  const comp   = keys.filter(k => S.days[k]?.status === 'complete').length;
+  const failed = keys.filter(k => S.days[k]?.status === 'failed').length;
+  const rate   = keys.length > 0 ? Math.round((comp / keys.length) * 100) : 0;
+
+  const reviewNum = (S.reviewCount || 0) + 1;
+  $('wr-header-sub').textContent = `Review #${reviewNum} · ${keys.length} days evaluated`;
+  $('wr-summary-stats').innerHTML =
+    `${comp} complete · ${failed} failed · ${rate}% completion rate<br>` +
+    `<span style="color:${rate >= 80 ? 'var(--green)' : rate >= 60 ? 'var(--yellow)' : 'var(--red)'};font-weight:700;">${
+      rate === 100 ? 'Perfect execution.' : rate >= 80 ? 'Acceptable.' : rate >= 60 ? 'Inconsistent execution.' : 'Below standard.'
+    }</span>`;
+
+  // Show Q3 only if there were failures to account for
+  $('wr-q3-section').style.display = failed > 0 ? 'block' : 'none';
+
+  $('gate-weekly-review').classList.remove('off');
+}
+
+function wrSetRating(n) {
+  _wrRating = n;
+  document.querySelectorAll('.wr-rating-btn').forEach(b => {
+    b.classList.toggle('selected', parseInt(b.dataset.val, 10) === n);
+  });
+  $('wr-error').style.display = 'none';
+}
+
+function submitWeeklyReview() {
+  const errEl = $('wr-error');
+  errEl.style.display = 'none';
+
+  // Validate weight
+  const wVal = parseFloat($('wr-weight').value);
+  if (!wVal || wVal < 50 || wVal > 700) {
+    errEl.textContent = 'Required: Enter your current body weight.';
+    errEl.style.display = 'block'; return;
+  }
+
+  // Validate rating
+  if (_wrRating === null) {
+    errEl.textContent = 'Required: Rate your execution this week (1–5).';
+    errEl.style.display = 'block'; return;
+  }
+
+  // Validate missed reason if any failures
+  const keys   = getLastNTracked(8);
+  const failed = keys.filter(k => S.days[k]?.status === 'failed').length;
+  const comp   = keys.filter(k => S.days[k]?.status === 'complete').length;
+  const rate   = keys.length > 0 ? Math.round((comp / keys.length) * 100) : 0;
+  const missedReason = $('wr-missed-reason').value.trim();
+
+  if (failed > 0 && !missedReason) {
+    errEl.textContent = 'Required: Account for each missed day before proceeding.';
+    errEl.style.display = 'block'; return;
+  }
+
+  // Generate strict feedback
+  let feedback;
+  if (rate === 100)      feedback = 'Acceptable. Maintain this standard without exception.';
+  else if (rate >= 80)   feedback = 'Inconsistent. Identify the failure point and eliminate it.';
+  else if (rate >= 60)   feedback = 'Substandard execution. You have significant ground to recover.';
+  else                   feedback = 'Unacceptable. Nothing changes until your execution changes. No adjustments made.';
+
+  // Difficulty adjustment — increase step goal only on strong weeks
+  let diffNote = '';
+  const prev = S.stepGoal;
+  if (rate === 100 && S.stepGoal < 30000) {
+    S.stepGoal = Math.min(S.stepGoal + 1000, 30000);
+    diffNote   = `Step target raised: ${prev.toLocaleString()} → ${S.stepGoal.toLocaleString()}.`;
+  } else if (rate >= 80 && S.stepGoal < 30000) {
+    S.stepGoal = Math.min(S.stepGoal + 500, 30000);
+    diffNote   = `Step target raised: ${prev.toLocaleString()} → ${S.stepGoal.toLocaleString()}.`;
+  }
+  // Failure = no adjustment. No mercy, no reduction.
+
+  // Save weight
+  S.weights[todayStr()] = wVal;
+
+  // Save body measurements (optional — store only fields with a value)
+  const mFields = ['arms','chest','abdomen','waist','thighs','calves','hips'];
+  const mData   = {};
+  mFields.forEach(f => {
+    const v = parseFloat($(`wr-m-${f}`)?.value);
+    if (v && v > 0) mData[f] = v;
+  });
+  if (Object.keys(mData).length > 0) {
+    if (!S.measurements) S.measurements = {};
+    S.measurements[todayStr()] = mData;
+  }
+
+  // Record review
+  if (!Array.isArray(S.weeklyReviews)) S.weeklyReviews = [];
+  S.weeklyReviews.push({
+    date: todayStr(), weight: wVal, rating: _wrRating,
+    missedReason, feedback, diffNote, rate, comp, failed,
+  });
+  S.reviewCount   = (S.reviewCount || 0) + 1;
+  S.pendingReview = false;
+  save();
+
+  // Hide gate, show feedback modal, then re-enter boot
+  $('gate-weekly-review').classList.add('off');
+  openModal(`Week ${S.reviewCount} Assessment`,
+    `<div style="line-height:1.8;">
+      <div style="font-size:10px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;">System Assessment</div>
+      <div style="font-size:14px;font-weight:700;line-height:1.5;margin-bottom:${diffNote?'12px':'0'};color:${rate >= 80 ? 'var(--green)' : rate >= 60 ? 'var(--yellow)' : 'var(--red)'};">${feedback}</div>
+      ${diffNote ? `<div style="font-size:11px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:10px;">${diffNote}</div>` : ''}
+    </div>`,
+    [{ label: 'CONTINUE', cls: 'btn-red', fn: () => { closeModal(); boot(); } }]
+  );
+}
+
+/* ─────────────────────────────
+   DAILY CHECK-IN FORM
+───────────────────────────────*/
+let _ciQ1        = null;   // true = all done, false = missed tasks, null = not answered
+let _ciAdherence = null;   // 1–5, null = not selected
+
+function updateEnergySlider(val) {
+  const n   = parseInt(val, 10);
+  const pct = ((n - 1) / 4) * 100;
+  const slider = $('ci-energy-slider');
+  slider.style.background =
+    `linear-gradient(to right, var(--orange) 0%, var(--orange) ${pct}%, var(--surface-3) ${pct}%, var(--surface-3) 100%)`;
+  $('ci-energy-display').textContent = n;
+  $('ci-form-error').style.display   = 'none';
+}
+
+function ciSetAdherence(n) {
+  _ciAdherence = n;
+  document.querySelectorAll('.adherence-btn').forEach(b => {
+    b.classList.toggle('selected', parseInt(b.dataset.val, 10) === n);
+  });
+  $('ci-form-error').style.display = 'none';
+}
+
+function showGateDailyCheckin() {
+  // Reset transient state
+  _ciQ1        = null;
+  _ciAdherence = null;
+
+  // Update date + weight unit
+  $('ci-form-date').textContent   = fmtDate(todayStr());
+  $('ci-weight-unit').textContent = S.weightUnit;
+
+  // Reset Q1 buttons
+  $('ci-btn-yes').className = 'ci-yn-btn';
+  $('ci-btn-no').className  = 'ci-yn-btn';
+
+  // Reset adherence buttons
+  document.querySelectorAll('.adherence-btn').forEach(b => b.classList.remove('selected'));
+
+  // Reset energy slider to midpoint (3)
+  const slider = $('ci-energy-slider');
+  slider.value = 3;
+  updateEnergySlider(3);
+
+  // Hide Q2 (failure reason), clear fields
+  $('ci-q2-section').style.display = 'none';
+  $('ci-fail-reason').value  = '';
+  $('ci-went-good').value    = '';
+  $('ci-went-bad').value     = '';
+
+  // Pre-fill weight if already logged today
+  const today = todayStr();
+  $('ci-weight').value = S.weights[today] != null ? S.weights[today] : '';
+
+  // Clear error
+  const errEl = $('ci-form-error');
+  errEl.style.display = 'none';
+  errEl.textContent   = '';
+
+  // Show gate
+  $('gate-ci-form').classList.remove('off');
+}
+
+function ciToggleQ1(val) {
+  _ciQ1 = val;
+  $('ci-btn-yes').className = 'ci-yn-btn' + (val === true  ? ' selected-yes' : '');
+  $('ci-btn-no').className  = 'ci-yn-btn' + (val === false ? ' selected-no'  : '');
+
+  // Reveal / hide failure reason field
+  $('ci-q2-section').style.display = val === false ? 'block' : 'none';
+  if (val === true) $('ci-fail-reason').value = '';
+
+  $('ci-form-error').style.display = 'none';
+}
+
+function submitDailyCheckin() {
+  const errEl = $('ci-form-error');
+  errEl.style.display = 'none';
+
+  // Q01 — task completion required
+  if (_ciQ1 === null) {
+    errEl.textContent   = 'Required: Did you execute all tasks? Select YES or NO.';
+    errEl.style.display = 'block';
+    errEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
+  // Q02 — fail reason required if Q1 = No
+  const failReason = $('ci-fail-reason').value.trim();
+  if (_ciQ1 === false && !failReason) {
+    errEl.textContent   = 'Required: State the reason for failure. This cannot be left blank.';
+    errEl.style.display = 'block';
+    $('ci-q2-section').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
+  // Q05 — adherence required
+  if (_ciAdherence === null) {
+    errEl.textContent   = 'Required: Rate your adherence (1–5).';
+    errEl.style.display = 'block';
+    errEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
+  // All valid — save to state
+  const today = todayStr();
+  const day   = S.days[today];
+  const energy = parseInt($('ci-energy-slider').value, 10);
+
+  day.ciFormDone   = true;
+  day.ciAllDone    = _ciQ1;
+  day.ciEnergy     = energy;
+  day.ciAdherence  = _ciAdherence;
+  day.ciFailReason = _ciQ1 === false ? failReason : '';
+  day.ciWentGood   = $('ci-went-good').value.trim();
+  day.ciWentBad    = $('ci-went-bad').value.trim();
+
+  // Optional: body weight
+  const wVal = parseFloat($('ci-weight').value);
+  if (wVal && wVal >= 50 && wVal <= 700) {
+    S.weights[today] = wVal;
+  }
+
+  // Hide form gate
+  $('gate-ci-form').classList.add('off');
+
+  if (_ciQ1 === false) {
+    // User declared failure — mark day failed, show penalty
+    markFailed(today, true);
+    save();
+    if (S.pendingPenalty) showGatePenalty(S.pendingPenalty);
+    else renderToday();
+  } else {
+    // User declared all tasks complete — mark task 05 done
+    if (!day.completedIds.includes('checkin')) {
+      day.completedIds.push('checkin');
+    }
+    if (day.completedIds.length === TASKS.length) {
+      sealDay();
+    } else {
+      save();
+      renderToday();
+      showToast('Check-in submitted.');
+    }
+  }
+}
+
+/* ─────────────────────────────
+   RENDER: ALL
+───────────────────────────────*/
+function renderAll() { renderToday(); renderConfig(); renderHistory(); renderStats(); }
+
+/* ─────────────────────────────
+   RENDER: TODAY
+───────────────────────────────*/
+function renderToday() {
+  renderLevel();  // update level badge strip on every today render
+
+  const today = todayStr();
+  const day   = S.days[today] || freshDay();
+  const deadline  = isPastDeadline();
+  const dayDone   = day.status === 'complete';
+  const dayFailed = day.status === 'failed';
+  const locked    = deadline || dayDone || dayFailed;
+
+  $('sh-date-label').textContent = fmtDate(today);
+  const sEl = $('sh-streak');
+  sEl.textContent = S.streak;
+  sEl.className = 'sh-streak-val ' + (S.streak >= 3 ? 'hot' : 'cold');
+  $('sh-flame').textContent = S.streak >= 3 ? '🔥' : '❄️';
+  $('sh-best').textContent  = `Best: ${S.bestStreak}`;
+
+  updateTimerBanner();
+
+  const rb = $('day-result-banner');
+  if (dayDone) {
+    rb.className = 'show success'; rb.style.display = 'flex';
+    $('drb-icon').textContent  = '✓';
+    $('drb-title').textContent = 'Day Complete';
+    $('drb-sub').textContent   = `All 5 tasks completed. Streak: ${S.streak} day${S.streak===1?'':'s'}.`;
+  } else if (dayFailed) {
+    rb.className = 'show fail'; rb.style.display = 'flex';
+    $('drb-icon').textContent  = '✖';
+    $('drb-title').textContent = 'Day Failed';
+    $('drb-sub').textContent   = 'Tasks were not completed before the deadline. Streak reset.';
+  } else {
+    rb.style.display = 'none'; rb.className = '';
+  }
+
+  const done = day.completedIds.length, total = TASKS.length, pct = (done/total)*100;
+  $('prog-count').textContent = `${done} / ${total}`;
+  const fill = $('prog-fill');
+  fill.style.width = pct + '%';
+  fill.className   = 'prog-fill' + (dayFailed ? ' fail' : done===0 ? ' zero' : '');
+
+  const pips = $('prog-pips').children;
+  for (let i=0; i<5; i++) {
+    const tid = TASKS[i].id;
+    pips[i].className = 'pip ' + (day.completedIds.includes(tid) ? (dayFailed ? 'fail' : 'done') : (dayFailed ? 'fail' : 'today'));
+  }
+
+  const disciplineText = day.disciplineText || S.disciplineTask || '';
+
+  $('task-cards').innerHTML = TASKS.map(t => {
+    const isComplete = day.completedIds.includes(t.id);
+    const instruction = t.id === 'discipline' ? (disciplineText || '— Not set —') : t.instruction;
+    const stepNote    = t.id === 'steps' ? `Target: ${S.stepGoal.toLocaleString()} steps.` : null;
+
+    const statusClass = isComplete ? 'complete' : (dayFailed && !isComplete ? 'failed' : 'pending');
+    const statusText  = isComplete ? 'COMPLETE' : (dayFailed && !isComplete ? 'FAILED' : 'PENDING');
+    const cardClass   = isComplete ? 'done' : (dayFailed && !isComplete ? 'failed-card' : '');
+
+    let btnHtml;
+    if (isComplete) {
+      btnHtml = `<button class="tc-btn complete-btn" disabled><span class="tc-btn-icon">✓</span> COMPLETED</button>`;
+    } else if (dayFailed) {
+      btnHtml = `<button class="tc-btn failed-btn" disabled><span class="tc-btn-icon">✖</span> FAILED — NOT COMPLETED</button>`;
+    } else if (locked) {
+      btnHtml = `<button class="tc-btn locked-btn" disabled><span class="tc-btn-icon">⏸</span> DEADLINE PASSED</button>`;
+    } else if (t.id === 'discipline' && !disciplineText) {
+      btnHtml = `<button class="tc-btn locked-btn" onclick="goto('config')"><span class="tc-btn-icon">↗</span> SET TASK IN CONFIG</button>`;
+    } else if (t.id === 'checkin') {
+      // Check-in task opens the evening form instead of direct completion
+      btnHtml = `<button class="tc-btn pending-btn" onclick="completeTask('checkin')" style="border-color:var(--red-dim);color:var(--red);"><span class="tc-btn-icon">◉</span> OPEN CHECK-IN FORM</button>`;
+    } else {
+      btnHtml = `<button class="tc-btn pending-btn" onclick="completeTask('${t.id}')"><span class="tc-btn-icon">○</span> MARK COMPLETE</button>`;
+    }
+
+    const stepLine  = stepNote ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${stepNote}</div>` : '';
+    const notSetNote = (t.id==='discipline' && !disciplineText && !dayFailed && !locked)
+      ? `<div class="tc-set-note">Task not assigned. <a onclick="goto('config')">Set in Config →</a></div>` : '';
+
+    return `
+      <div class="task-card ${cardClass}">
+        <div class="tc-head">
+          <div class="tc-num-title"><span class="tc-num">${t.num}</span><span class="tc-title">${t.title}</span></div>
+          <span class="tc-status ${statusClass}">${statusText}</span>
+        </div>
+        <div class="tc-body">
+          <div class="tc-instruction">${instruction}</div>
+          ${stepLine}
+          <div class="tc-detail">${t.detail}</div>
+          ${notSetNote}
+          <div style="margin-top:2px;">${btnHtml}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ─────────────────────────────
+   RENDER: TIMER BANNER
+───────────────────────────────*/
+function updateTimerBanner() {
+  const banner = $('timer-banner'), timeEl = $('tb-time');
+  $('tb-deadline').textContent = `Deadline: ${deadlineStr()}`;
+
+  const today = todayStr(), day = S.days[today];
+  if (day && day.status === 'complete') {
+    banner.className = '';
+    timeEl.textContent = 'COMPLETE';
+    timeEl.style.color = 'var(--green)';
+    timeEl.style.fontSize = '18px';
+    timeEl.style.letterSpacing = '0.04em';
+    return;
+  }
+
+  timeEl.style.cssText = '';
+  const diff = getDeadlineMs() - Date.now();
+
+  if (diff <= 0) { banner.className = 'expired'; timeEl.textContent = 'DEADLINE PASSED'; return; }
+
+  const h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000), s = Math.floor((diff%60000)/1000);
+  timeEl.textContent = `${p2(h)}:${p2(m)}:${p2(s)}`;
+
+  if (diff < 3600000)      banner.className = 'crit';
+  else if (diff < 7200000) banner.className = 'warn';
+  else                     banner.className = '';
+}
+
+/* ─────────────────────────────
+   THEME
+───────────────────────────────*/
+function applyTheme() {
+  const t = S.theme || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  _syncThemeBtns(t);
+}
+
+function setTheme(t) {
+  S.theme = t;
+  save();
+  applyTheme();
+}
+
+function _syncThemeBtns(t) {
+  const darkBtn  = $('theme-btn-dark');
+  const lightBtn = $('theme-btn-light');
+  if (!darkBtn || !lightBtn) return;
+  [darkBtn, lightBtn].forEach(b => {
+    b.style.borderColor = '';
+    b.style.color       = '';
+    b.style.background  = '';
+  });
+  const active = t === 'dark' ? darkBtn : lightBtn;
+  active.style.borderColor = 'var(--orange)';
+  active.style.color       = 'var(--orange)';
+  active.style.background  = 'rgba(255,107,53,0.08)';
+}
+
+/* ─────────────────────────────
+   RENDER: CONFIG
+───────────────────────────────*/
+function renderConfig() {
+  const today = todayStr(), day = S.days[today];
+  $('discipline-input').value   = (day && day.disciplineText) || S.disciplineTask || '';
+  $('step-goal-input').value    = S.stepGoal;
+  $('cfg-deadline-display').textContent = deadlineStr();
+  $('deadline-hour-select').value = String(S.deadlineHour);
+  $('weight-unit-select').value   = S.weightUnit;
+}
+
+function saveDisciplineTask() {
+  const val = $('discipline-input').value.trim();
+  if (!val) { showToast('Enter a discipline task.'); return; }
+  S.disciplineTask = val;
+  const today = todayStr();
+  if (S.days[today]) S.days[today].disciplineText = val;
+  save(); renderToday(); showToast('Discipline task saved.');
+}
+
+function saveStepGoal() {
+  const val = parseInt($('step-goal-input').value, 10);
+  if (!val || val < 100) { showToast('Enter a valid step count.'); return; }
+  S.stepGoal = val; save(); renderToday(); showToast(`Step goal: ${val.toLocaleString()}`);
+}
+
+function saveDeadline() {
+  const h = parseInt($('deadline-hour-select').value, 10);
+  S.deadlineHour = h; save(); renderConfig(); updateTimerBanner();
+  showToast(`Deadline set to ${deadlineStr()}`);
+}
+
+function saveWeightUnit() {
+  S.weightUnit = $('weight-unit-select').value;
+  save(); showToast(`Weight unit: ${S.weightUnit}`);
+  $('stats-weight-unit').textContent = S.weightUnit;
+}
+
+function confirmResetDay() {
+  openModal('Reset Today?',
+    '<p style="font-size:14px;color:var(--text-dim);line-height:1.6">All task progress and check-in data for today will be cleared.</p>',
+    [
+      { label:'RESET', cls:'btn-dark', fn: () => {
+          const today = todayStr();
+          const prevTime = S.days[today]?.checkInTime || null;
+          S.days[today] = {
+            ...freshDay(),
+            checkedIn:   true,       // preserve morning check-in
+            checkInTime: prevTime,   // preserve check-in time
+            // ciFormDone, ciAllDone, ciEnergy, ciFailReason all reset to defaults via freshDay()
+          };
+          // Task 05 (checkin) must be re-completed via form — do NOT auto-push here
+          save(); renderAll(); closeModal(); showToast('Today reset.');
+        }
+      },
+      { label:'Cancel', cls:'btn-ghost', fn: closeModal },
+    ]);
+}
+
+function confirmFullReset() {
+  openModal('Full Data Reset?',
+    '<p style="font-size:14px;color:var(--red);font-weight:700;line-height:1.6">ALL data will be permanently deleted.</p>',
+    [
+      { label:'DELETE EVERYTHING', cls:'btn-dark', fn: () => { localStorage.removeItem(KEY); location.reload(); } },
+      { label:'Cancel', cls:'btn-ghost', fn: closeModal },
+    ]);
+}
+
+/* ─────────────────────────────
+   DEMO / SEED DATA
+───────────────────────────────*/
+function seedDemoData() {
+  openModal('Seed Demo Data',
+    `<div style="font-size:13px;color:var(--text-dim);line-height:1.8;">
+       Replaces <b style="color:var(--orange);">all current data</b> with 45 days of realistic demo data.<br><br>
+       Includes: days, weights, measurements,<br>5 weekly reviews, and 2 coach feedback entries.
+     </div>`,
+    [
+      { label: 'SEED DEMO DATA', cls: 'btn-red', fn: _execSeedDemoData },
+      { label: 'Cancel', cls: 'btn-ghost', fn: closeModal },
+    ]
+  );
+}
+
+function _execSeedDemoData() {
+  closeModal();
+
+  const allIds   = ['training', 'steps', 'nutrition', 'discipline', 'checkin'];
+  const failedSet = new Set([3, 7, 14, 19, 25, 31, 38]);
+
+  const wentGood = [
+    'Training session was strong. Hit all sets without dropping weight.',
+    'Nutrition was clean all day. No deviations.',
+    'Cold shower done first thing. Sharp focus all morning.',
+    'Stepped 12,400 steps — smashed the goal.',
+    'Completed discipline task before 8am.',
+    'Energy was high despite late sleep.',
+    'Best training session this week. PRs on two lifts.',
+    'Meal prep from Sunday paid off today.',
+  ];
+  const wentBad = [
+    'Energy dropped mid-afternoon. Likely poor sleep.',
+    'Missed step goal by around 1800 steps.',
+    'Late start disrupted the morning routine.',
+    'Work ran long — discipline task got pushed to last minute.',
+    'Hydration was poor. Noticed it during training.',
+    'Skipped post-training stretch. Tightness now.',
+  ];
+
+  const days = {}, weights = {};
+  let totalComplete = 0, totalFailed = 0, currentStreak = 0, bestStreak = 0;
+
+  for (let i = 44; i >= 1; i--) {
+    const d      = daysAgo(i);
+    const failed = failedSet.has(i);
+    const completedIds = failed ? allIds.slice(0, 2 + (i % 3)) : [...allIds];
+    const status = failed ? 'failed' : 'complete';
+
+    if (failed) { totalFailed++;  currentStreak = 0; }
+    else        { totalComplete++; currentStreak++; if (currentStreak > bestStreak) bestStreak = currentStreak; }
+
+    const ciDone    = !failed || (i % 3 !== 0);
+    const energy    = failed ? 2 + (i % 2) : 3 + (i % 2);
+    const adherence = failed ? 1 + (i % 3) : 3 + (i % 2);
+
+    days[d] = {
+      status,
+      checkedIn:     true,
+      checkInTime:   '07:' + String((i * 7) % 60).padStart(2, '0'),
+      completedIds,
+      completedAt:   failed ? null : '20:15',
+      disciplineText: 'Cold shower every morning',
+      ciFormDone:    ciDone,
+      ciAllDone:     !failed,
+      ciEnergy:      energy,
+      ciAdherence:   adherence,
+      ciFailReason:  failed ? 'Did not complete all 5 tasks for the day.' : '',
+      ciWentGood:    ciDone && !failed  ? wentGood[i % wentGood.length] : '',
+      ciWentBad:     ciDone && (failed || i % 5 === 0) ? wentBad[i % wentBad.length] : '',
+    };
+
+    // Weight every other day — gently decreasing
+    if (i % 2 === 0) {
+      const base  = 91.5 - ((44 - i) * 0.082);
+      const noise = ((i * 13) % 10 - 5) * 0.06;
+      weights[d]  = Math.round((base + noise) * 10) / 10;
+    }
+  }
+
+  // Measurements — 6 snapshots (baseline + one per review)
+  const measOffsets = [44, 36, 28, 20, 12, 4];
+  const measData    = [
+    { arms:14.5, chest:42.0, abdomen:37.5, waist:35.5, thighs:24.0, calves:14.0, hips:40.0 },
+    { arms:14.5, chest:41.5, abdomen:36.8, waist:35.0, thighs:23.8, calves:14.0, hips:39.5 },
+    { arms:14.8, chest:41.0, abdomen:36.0, waist:34.5, thighs:23.5, calves:14.1, hips:39.0 },
+    { arms:15.0, chest:40.5, abdomen:35.5, waist:34.0, thighs:23.2, calves:14.2, hips:38.5 },
+    { arms:15.0, chest:40.2, abdomen:35.0, waist:33.8, thighs:23.0, calves:14.3, hips:38.2 },
+    { arms:15.2, chest:40.0, abdomen:34.8, waist:33.5, thighs:22.8, calves:14.4, hips:38.0 },
+  ];
+  const measurements = {};
+  measOffsets.forEach((off, idx) => { measurements[daysAgo(off)] = measData[idx]; });
+
+  // Weekly reviews — 5 completed
+  const reviewDefs = [
+    { off:40, rate:75,  comp:6, failed:2, rating:3, missed:'Missed step goal twice. Discipline task skipped on one day.' },
+    { off:32, rate:87,  comp:7, failed:1, rating:4, missed:'One failed day due to travel disruption.' },
+    { off:24, rate:62,  comp:5, failed:3, rating:2, missed:'Work deadlines took over. Poor planning on my part.' },
+    { off:16, rate:87,  comp:7, failed:1, rating:4, missed:'Skipped training on one day — not acceptable.' },
+    { off: 8, rate:100, comp:8, failed:0, rating:5, missed:'' },
+  ];
+  const weeklyReviews = reviewDefs.map(r => {
+    const d  = daysAgo(r.off);
+    const fb = r.rate === 100 ? 'Acceptable. Maintain this standard without exception.'
+      : r.rate >= 80 ? 'Inconsistent. Identify the failure point and eliminate it.'
+      : 'Substandard execution. You have significant ground to recover.';
+    return {
+      date: d, weight: weights[d] || parseFloat((91.5 - r.off * 0.082).toFixed(1)),
+      rating: r.rating, missedReason: r.missed, feedback: fb, diffNote: '',
+      rate: r.rate, comp: r.comp, failed: r.failed,
+    };
+  });
+
+  // Coach feedback — 2 entries
+  const coachFeedback = [
+    {
+      date: daysAgo(35), reviewNum: 2,
+      text: 'Good progress on measurements Alex. Weight trend is moving in the right direction.\n\nFocus areas for next cycle:\n1. Sleep — 7+ hours is non-negotiable for recovery.\n2. Step goal — you\'re hitting 9,500 consistently. Close but not enough. Walk after dinner.\n3. Training intensity looks solid. Keep the morning sessions.',
+    },
+    {
+      date: daysAgo(19), reviewNum: 4,
+      text: 'Strong bounce back after week 3. This is the mental resilience I want to see.\n\nNotes:\n— Waist dropped 2.0 in from baseline. Excellent progress.\n— Avg adherence of 4.0 is solid. Push for 4.5+.\n— Next cycle target: 90%+ completion rate. You\'re capable of it.\n\nCold showers stay. Non-negotiable.',
+    },
+  ];
+
+  // Apply to S
+  S.days           = days;
+  S.streak         = currentStreak;
+  S.bestStreak     = bestStreak;
+  S.totalComplete  = totalComplete;
+  S.totalFailed    = totalFailed;
+  S.disciplineTask = 'Cold shower every morning';
+  S.stepGoal       = 11000;
+  S.deadlineHour   = 21;
+  S.pendingPenalty = null;
+  S.weights        = weights;
+  S.weightUnit     = 'kg';
+  S.measurements   = measurements;
+  S.measurementUnit= 'in';
+  S.name           = 'Alex Demo';
+  S.goal           = 'Lose 15 kg, build consistent training habits, and improve overall discipline over the next 6 months.';
+  S.height         = '175 cm';
+  S.onboardingDone = true;
+  S.onboardingFails= '';
+  S.onboardingReason='';
+  S.pendingReview  = false;
+  S.reviewCount    = 5;
+  S.weeklyReviews  = weeklyReviews;
+  S.coachFeedback  = coachFeedback;
+
+  save();
+  showToast('Demo data loaded — 45 days seeded.');
+  setTimeout(boot, 300);
+}
+
+/* ─────────────────────────────
+   RENDER: HISTORY
+───────────────────────────────*/
+let hY = new Date().getFullYear(), hM = new Date().getMonth();
+
+function renderHistory() {
+  const label = new Date(hY,hM,1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  $('hist-month-h').textContent = label;
+  $('hist-nav-lbl').textContent = label;
+
+  const today = todayStr(), first = new Date(hY,hM,1).getDay(), days = new Date(hY,hM+1,0).getDate();
+  const DH = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  let html = DH.map(d=>`<div class="cal-dh">${d}</div>`).join('');
+  for (let i=0;i<first;i++) html+=`<div class="cal-d empty"></div>`;
+
+  let comp=0, fail=0, tracked=0;
+  for (let d=1; d<=days; d++) {
+    const k = dkFrom(hY,hM,d), r = S.days[k];
+    let cls = '';
+    if (k===today) cls='today';
+    else if (r) {
+      if (r.status==='complete') { cls='done'; comp++; tracked++; }
+      else if (r.status==='failed') { cls='fail'; fail++; tracked++; }
+    }
+    html += `<div class="cal-d ${cls}">${d}</div>`;
+  }
+
+  $('cal-grid').innerHTML = html;
+  const rate = tracked>0 ? Math.round(comp/tracked*100) : 0;
+  $('hist-rate').textContent = tracked>0 ? rate+'%' : '—';
+  $('hist-sub').textContent  = tracked>0 ? `${comp} complete · ${fail} failed · ${tracked} tracked` : 'No recorded days this month';
+  const bar = $('hist-bar');
+  bar.style.width = rate+'%';
+  bar.className   = 'pbar-fill' + (rate<70?' red':'');
+}
+
+function histPrev() { hM--; if(hM<0){hM=11;hY--;} renderHistory(); }
+function histNext() { hM++; if(hM>11){hM=0;hY++;} renderHistory(); }
+
+/* ─────────────────────────────
+   RENDER: STATS
+───────────────────────────────*/
+function setStatsWindow(n, el) {
+  statsWindow = n;
+  document.querySelectorAll('.window-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderStats();
+}
+
+function renderStats() {
+  const today = todayStr();
+
+  // Window label
+  const wLabel = statsWindow === 0 ? 'All time' : `Last ${statsWindow} days`;
+  $('stats-window-label').textContent = wLabel;
+
+  // Streak metrics
+  $('stats-streak').textContent = S.streak;
+  $('stats-best').textContent   = S.bestStreak;
+
+  // Completion Rate
+  const { complete, tracked, rate, failed } = getCompletionStats();
+  const rateEl  = $('stats-rate-val');
+  const rateBar = $('stats-rate-bar');
+  const rateSub = $('stats-rate-sub');
+
+  if (rate === null) {
+    rateEl.textContent  = '—';
+    rateEl.style.color  = 'var(--text-muted)';
+    rateBar.style.width = '0%';
+    rateSub.textContent = 'No tracked days in this window.';
+  } else {
+    rateEl.textContent  = rate + '%';
+    rateEl.style.color  = rate >= 80 ? 'var(--green)' : rate >= 60 ? 'var(--yellow)' : 'var(--red)';
+    rateBar.style.width = rate + '%';
+    rateBar.className   = 'rate-bar-fill' + (rate >= 80 ? '' : rate >= 60 ? ' mid' : ' low');
+    rateSub.textContent = `${complete} complete · ${failed} failed · ${tracked} tracked`;
+  }
+
+  // Activity grid (last 30 days always shown as grid)
+  const GRID_DAYS = 30;
+  let gridHtml = '', comp30 = 0, fail30 = 0;
+  for (let i = GRID_DAYS-1; i >= 0; i--) {
+    const k = daysAgo(i), r = S.days[k];
+    let cls = 'empty';
+    if (k === today)               cls = 'today';
+    else if (r?.status==='complete') { cls = 'done'; comp30++; }
+    else if (r?.status==='failed')   { cls = 'fail'; fail30++; }
+    gridHtml += `<div class="ag-cell ${cls}" title="${k}"></div>`;
+  }
+  $('activity-grid').innerHTML = gridHtml;
+  $('activity-count').textContent = `${comp30}/${GRID_DAYS} days · 30-day`;
+
+  // Weight chart
+  $('stats-weight-unit').textContent = S.weightUnit;
+  const wEntries = getLast14Weights();
+  const chartWrap = $('weight-chart-wrap');
+
+  if (wEntries.length < 2) {
+    chartWrap.innerHTML = `<div class="chart-empty">No data. Log weight daily to see trend.</div>`;
+    $('weight-delta-row').classList.add('hidden');
+    $('weight-last-entry').textContent = '';
+  } else {
+    const svgStr = buildWeightSVG(wEntries);
+    chartWrap.innerHTML = svgStr || '';
+
+    // Delta
+    const first = wEntries[0].w, last = wEntries[wEntries.length-1].w;
+    const delta = last - first, absDelta = Math.abs(delta).toFixed(1);
+    const dRow  = $('weight-delta-row');
+    const dVal  = $('weight-delta-val');
+    const dLbl  = $('weight-delta-lbl');
+
+    dRow.classList.remove('hidden');
+
+    if (Math.abs(delta) < 0.1) {
+      dVal.textContent = '→ No change';
+      dVal.className   = 'weight-delta-val flat';
+      dLbl.textContent = `Over ${wEntries.length} logged entries`;
+    } else {
+      const dir = delta < 0 ? '↓' : '↑';
+      dVal.textContent = `${dir} ${absDelta} ${S.weightUnit}`;
+      dVal.className   = `weight-delta-val ${delta < 0 ? 'down' : 'up'}`;
+      dLbl.textContent = `Over ${wEntries.length} entries · ${wEntries[0].date.slice(5)} → ${wEntries[wEntries.length-1].date.slice(5)}`;
+    }
+
+    const lastEntry = wEntries[wEntries.length-1];
+    $('weight-last-entry').textContent = `Last: ${lastEntry.w} ${S.weightUnit} on ${fmtDate(lastEntry.date).split(',').slice(0,2).join(',')}`;
+  }
+
+  // Measurements trend
+  $('stats-meas-unit').textContent = S.measurementUnit || 'in';
+  $('meas-pill-row').innerHTML = MEAS_FIELDS.map(f =>
+    `<button class="meas-pill${f.key === _activeMeasField ? ' active' : ''}"
+      data-field="${f.key}" onclick="selectMeasurementPill('${f.key}')">${f.label}</button>`
+  ).join('');
+  selectMeasurementPill(_activeMeasField);
+
+  // Task compliance
+  const compliance = getTaskCompliance();
+  const windowLabel = statsWindow === 0 ? 'All time' : `${statsWindow}-day window`;
+  $('compliance-window-label').textContent = windowLabel;
+
+  if (!compliance[0].tracked) {
+    $('compliance-list').innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No tracked days in window.</div>`;
+  } else {
+    $('compliance-list').innerHTML = compliance.map(c => {
+      const pct = c.pct;
+      const cls = pct >= 80 ? 'hi' : pct >= 60 ? 'mid' : 'lo';
+      const pctStr = pct !== null ? pct + '%' : '—';
+      const barW   = pct !== null ? pct : 0;
+      return `
+        <div class="compliance-row">
+          <div class="cr-name">${c.title.replace('DISCIPLINE TASK','DISCIPLINE').replace('DAILY CHECK-IN','CHECK-IN')}</div>
+          <div class="cr-bar-track">
+            <div class="cr-bar-fill ${cls}" style="width:${barW}%"></div>
+          </div>
+          <div class="cr-pct ${cls}">${pctStr}</div>
+        </div>`;
+    }).join('');
+  }
+
+  // Coach feedback list
+  renderCoachFeedbackList();
+}
+
+/* ─────────────────────────────
+   PROGRESS REPORTS
+───────────────────────────────*/
+
+// Build sorted array of YYYY-MM-DD strings for a window
+function getDateRange(count, offsetDays) {
+  const arr = [];
+  for (let i = count - 1; i >= 0; i--) arr.push(daysAgo(i + offsetDays));
+  return arr;
+}
+
+// Aggregate all metrics for an array of date strings
+function computePeriodData(dates) {
+  let complete = 0, failed = 0, tracked = 0;
+  let energySum = 0, energyCount = 0, adherenceSum = 0, adherenceCount = 0, checkedIn = 0;
+  const taskCounts = {};
+  TASKS.forEach(t => { taskCounts[t.id] = { done: 0, total: 0 }; });
+  const wentGoodNotes = [], wentBadNotes = [];
+
+  const weightEntries = dates
+    .filter(d => S.weights[d] != null)
+    .map(d => ({ date: d, val: S.weights[d] }));
+
+  const measEntries = dates
+    .filter(d => S.measurements?.[d])
+    .map(d => ({ date: d, data: S.measurements[d] }));
+
+  dates.forEach(d => {
+    const day = S.days[d];
+    if (!day || day.status === 'pending') return;
+    tracked++;
+    if (day.status === 'complete')      complete++;
+    else if (day.status === 'failed')   failed++;
+    TASKS.forEach(t => {
+      taskCounts[t.id].total++;
+      if (day.completedIds?.includes(t.id)) taskCounts[t.id].done++;
+    });
+    if (day.checkedIn) checkedIn++;
+    if (day.ciFormDone) {
+      if (day.ciEnergy    != null) { energySum    += day.ciEnergy;    energyCount++;    }
+      if (day.ciAdherence != null) { adherenceSum += day.ciAdherence; adherenceCount++; }
+      if (day.ciWentGood?.trim()) wentGoodNotes.push({ date: d, text: day.ciWentGood.trim() });
+      if (day.ciWentBad?.trim())  wentBadNotes.push({ date: d, text: day.ciWentBad.trim() });
+    }
+  });
+
+  return {
+    dates, complete, failed, tracked,
+    rate:         tracked       > 0 ? Math.round((complete / tracked)       * 100) : null,
+    avgEnergy:    energyCount   > 0 ? (energySum   / energyCount).toFixed(1)       : null,
+    avgAdherence: adherenceCount> 0 ? (adherenceSum/ adherenceCount).toFixed(1)    : null,
+    checkedIn,
+    taskCounts,
+    wentGoodNotes, wentBadNotes,
+    weightFirst: weightEntries.length > 0 ? weightEntries[0]                       : null,
+    weightLast:  weightEntries.length > 0 ? weightEntries[weightEntries.length - 1]: null,
+    weightCount: weightEntries.length,
+    measFirst:   measEntries.length   > 0 ? measEntries[0]                         : null,
+    measLast:    measEntries.length   > 0 ? measEntries[measEntries.length - 1]    : null,
+  };
+}
+
+// Render a plain HTML table for the report
+function rptTable(rows) {
+  const colW = ['40%', '20%', '20%', '20%'];
+  let h = '<table style="width:100%;border-collapse:collapse;font-size:11px;">';
+  rows.forEach((row, ri) => {
+    h += '<tr>';
+    row.forEach((cell, ci) => {
+      const hdr = ri === 0;
+      const s = hdr
+        ? 'font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#666;padding:4px 6px 5px;border-bottom:1px solid #ccc;text-align:left;'
+        : `padding:5px 6px;border-bottom:1px solid #f0f0f0;vertical-align:top;color:${ci>0?'#222':'#000'};`;
+      const tag = hdr ? 'th' : 'td';
+      h += `<${tag} style="${s}width:${colW[ci]||'auto'}">${cell || '—'}</${tag}>`;
+    });
+    h += '</tr>';
+  });
+  return h + '</table>';
+}
+
+// Delta arrow string (no colour — print is monochrome)
+function rptDelta(cur, prev, higherIsBetter, decimals) {
+  const c = parseFloat(cur), p = parseFloat(prev);
+  if (isNaN(c) || isNaN(p)) return '—';
+  const diff = c - p;
+  if (Math.abs(diff) < 0.05) return '→ –';
+  const arrow = diff > 0 ? '▲' : '▼';
+  const d     = decimals != null ? Math.abs(diff).toFixed(decimals) : Math.abs(diff) % 1 === 0 ? Math.abs(diff) : Math.abs(diff).toFixed(1);
+  return `${arrow} ${d}`;
+}
+
+function rptRateDelta(cur, prev) {
+  if (cur === null || prev === null) return '—';
+  const diff = cur - prev;
+  if (Math.abs(diff) < 0.5) return '→ –';
+  return `${diff > 0 ? '▲' : '▼'} ${Math.abs(diff)}%`;
+}
+
+// Weight section HTML
+function rptWeightSection(cur, prev, wUnit) {
+  if (!cur.weightFirst) return '<p style="color:#999;font-style:italic;font-size:11px;">No weight entries in this period.</p>';
+  const wDelta = (p) => {
+    if (!p.weightFirst || !p.weightLast || p.weightFirst.date === p.weightLast.date) return '—';
+    const d = p.weightLast.val - p.weightFirst.val;
+    return `${d < 0 ? '▼' : '▲'} ${Math.abs(d).toFixed(1)} ${wUnit} (${((d / p.weightFirst.val) * 100).toFixed(1)}%)`;
+  };
+  const wRange = (p) => p.weightFirst
+    ? `${p.weightFirst.val} → ${p.weightLast?.val ?? p.weightFirst.val} ${wUnit}`
+    : '—';
+  return rptTable([
+    ['',             'Range',      'Change'],
+    ['This period',  wRange(cur),  wDelta(cur)],
+    ['Prev period',  wRange(prev), wDelta(prev)],
+  ]);
+}
+
+// Measurements section HTML
+function rptMeasurementsSection(cur, prev, unit) {
+  const anyData = cur.measFirst || cur.measLast || prev.measFirst || prev.measLast;
+  if (!anyData) return '<p style="color:#999;font-style:italic;font-size:11px;">No measurements recorded in this period.</p>';
+
+  const mFields = ['arms','chest','abdomen','waist','thighs','calves','hips'];
+  const cFirst  = cur.measFirst?.data  || {};
+  const cLast   = cur.measLast?.data   || {};
+  const pFirst  = prev.measFirst?.data || {};
+  const pLast   = prev.measLast?.data  || {};
+
+  const activeFields = mFields.filter(f =>
+    cFirst[f] != null || cLast[f] != null || pFirst[f] != null || pLast[f] != null
+  );
+  if (!activeFields.length) return '<p style="color:#999;font-style:italic;font-size:11px;">No measurements recorded in this period.</p>';
+
+  const rows = [['Measurement', `This period (${unit})`, `Prev period (${unit})`, 'Change']];
+  activeFields.forEach(f => {
+    const label = f.charAt(0).toUpperCase() + f.slice(1);
+    const cD  = cFirst[f] != null && cLast[f] != null ? cLast[f] - cFirst[f] : null;
+    const pD  = pFirst[f] != null && pLast[f] != null ? pLast[f] - pFirst[f] : null;
+    const cStr = cFirst[f] != null ? `${cFirst[f]} → ${cLast[f] ?? cFirst[f]}` : '—';
+    const pStr = pFirst[f] != null ? `${pFirst[f]} → ${pLast[f] ?? pFirst[f]}` : '—';
+    const chg  = cD !== null ? `${cD < 0 ? '▼' : '▲'} ${Math.abs(cD).toFixed(1)}` : pD !== null ? `(prev: ${pD < 0 ? '▼' : '▲'}${Math.abs(pD).toFixed(1)})` : '—';
+    rows.push([label, cStr, pStr, chg]);
+  });
+  return rptTable(rows);
+}
+
+// Reflection notes section HTML
+function rptReflectionSection(cur, summarize) {
+  const good = cur.wentGoodNotes, bad = cur.wentBadNotes;
+  if (!good.length && !bad.length) return '<p style="color:#999;font-style:italic;font-size:11px;">No reflection notes in this period.</p>';
+
+  const MAX = summarize ? 3 : 999;
+  const noteBlock = (notes, label) => {
+    if (!notes.length) return '';
+    const shown = notes.slice(0, MAX);
+    const more  = notes.length > MAX ? ` <span style="color:#999;">(${notes.length - MAX} more not shown)</span>` : '';
+    let s = `<div style="font-weight:700;font-size:11px;margin:10px 0 5px;">${label} (${notes.length})${more}</div>`;
+    shown.forEach(n => {
+      const [,m,d] = n.date.split('-').map(Number);
+      s += `<div style="font-size:11px;padding:3px 0 3px 12px;border-left:2px solid #ccc;margin-bottom:4px;color:#333;">
+        <span style="color:#999;font-size:10px;margin-right:6px;">${m}/${d}</span>${n.text}
+      </div>`;
+    });
+    return s;
+  };
+
+  return noteBlock(good, '✓ What went well') + noteBlock(bad, '✗ What didn\'t go well');
+}
+
+// Build period label string for date range
+function rptPeriodStr(dates) {
+  if (!dates.length) return '—';
+  const s = new Date(dates[0] + 'T00:00:00');
+  const e = new Date(dates[dates.length-1] + 'T00:00:00');
+  const fmt = (dt) => dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${fmt(s)} – ${fmt(e)}`;
+}
+
+// Main report HTML builder
+function generateReportHTML(periodDays, periodLabel) {
+  const curDates  = getDateRange(periodDays, 0);
+  const prevDates = getDateRange(periodDays, periodDays);
+  const cur  = computePeriodData(curDates);
+  const prev = computePeriodData(prevDates);
+
+  const wUnit  = S.weightUnit      || 'kg';
+  const mUnit  = S.measurementUnit || 'in';
+  const level  = computeLevel();
+  const today  = new Date();
+  const genStr = today.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+  const summarizeRef = periodDays > 7;
+
+  const sec = (title) =>
+    `<div style="font-size:10px;font-weight:900;letter-spacing:0.14em;text-transform:uppercase;
+      border-bottom:1px solid #ccc;padding-bottom:4px;margin:18px 0 8px;color:#333;">${title}</div>`;
+
+  const prevPeriodLabel = `Prev ${periodLabel.toLowerCase()}`;
+
+  return `
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:12px;color:#111;max-width:720px;margin:0 auto;padding:20px;">
+
+  <!-- HEADER -->
+  <div style="border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:4px;">
+    <div style="font-size:20px;font-weight:900;letter-spacing:0.06em;text-transform:uppercase;">Project KingMaker</div>
+    <div style="font-size:13px;font-weight:700;margin-top:2px;">${periodLabel} Progress Report</div>
+    <div style="font-size:11px;color:#555;margin-top:8px;line-height:1.8;">
+      <b>Name:</b> ${S.name || '—'} &nbsp;·&nbsp;
+      <b>Level:</b> ${level.level.name} &nbsp;·&nbsp;
+      <b>Current Streak:</b> ${S.streak} days &nbsp;·&nbsp;
+      <b>Best Streak:</b> ${S.bestStreak} days<br>
+      <b>Period:</b> ${rptPeriodStr(curDates)} &nbsp;·&nbsp;
+      <b>Generated:</b> ${genStr}
+    </div>
+    ${S.goal ? `<div style="font-size:11px;color:#444;margin-top:8px;padding:8px 12px;background:#f8f8f8;border-left:3px solid #333;font-style:italic;">"${S.goal.length > 200 ? S.goal.slice(0,200)+'…' : S.goal}"</div>` : ''}
+  </div>
+
+  ${sec('Execution Summary')}
+  ${rptTable([
+    ['', 'This period', prevPeriodLabel, 'Change'],
+    ['Days Tracked',    cur.tracked ?? '—',  prev.tracked ?? '—',  '—'],
+    ['Days Complete',   cur.complete ?? '—', prev.complete ?? '—', rptDelta(cur.complete,   prev.complete,   true,  0)],
+    ['Days Failed',     cur.failed   ?? '—', prev.failed   ?? '—', rptDelta(cur.failed,     prev.failed,     false, 0)],
+    ['Completion Rate', cur.rate  !== null ? cur.rate+'%'  : '—',
+                        prev.rate !== null ? prev.rate+'%' : '—',  rptRateDelta(cur.rate, prev.rate)],
+    ['Days Checked In', cur.checkedIn,       prev.checkedIn,       rptDelta(cur.checkedIn, prev.checkedIn, true, 0)],
+  ])}
+
+  ${sec('Task Compliance')}
+  ${rptTable([
+    ['Task', 'This period', prevPeriodLabel, 'Change'],
+    ...TASKS.map(t => {
+      const c  = cur.taskCounts[t.id],  p  = prev.taskCounts[t.id];
+      const cP = c.total > 0 ? Math.round((c.done / c.total) * 100) : null;
+      const pP = p.total > 0 ? Math.round((p.done / p.total) * 100) : null;
+      return [
+        t.title.replace('DISCIPLINE TASK','DISCIPLINE').replace('DAILY CHECK-IN','CHECK-IN'),
+        cP !== null ? `${c.done}/${c.total} (${cP}%)` : '—',
+        pP !== null ? `${p.done}/${p.total} (${pP}%)` : '—',
+        rptRateDelta(cP, pP),
+      ];
+    }),
+  ])}
+
+  ${sec('Check-in Insights')}
+  ${rptTable([
+    ['',                    'This period', prevPeriodLabel, 'Change'],
+    ['Avg Energy (1–5)',    cur.avgEnergy    ?? '—', prev.avgEnergy    ?? '—', rptDelta(cur.avgEnergy,    prev.avgEnergy,    true, 1)],
+    ['Avg Adherence (1–5)', cur.avgAdherence ?? '—', prev.avgAdherence ?? '—', rptDelta(cur.avgAdherence, prev.avgAdherence, true, 1)],
+  ])}
+
+  ${sec(`Body Weight (${wUnit})`)}
+  ${rptWeightSection(cur, prev, wUnit)}
+
+  ${sec(`Body Measurements (${mUnit})`)}
+  ${rptMeasurementsSection(cur, prev, mUnit)}
+
+  ${sec('Reflection Notes')}
+  ${rptReflectionSection(cur, summarizeRef)}
+
+  ${(() => {
+    const cfList = (S.coachFeedback || []).filter(cf => curDates.includes(cf.date));
+    if (!cfList.length) return '';
+    const items = cfList.map(cf => {
+      const revLabel = cf.reviewNum > 0 ? `Review #${cf.reviewNum}` : 'General';
+      return `<div style="margin-bottom:12px;padding:10px 12px;border-left:3px solid #333;background:#f8f8f8;">
+        <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#555;margin-bottom:5px;">
+          ${revLabel} &nbsp;·&nbsp; ${cf.date}
+        </div>
+        <div style="font-size:11px;line-height:1.7;white-space:pre-wrap;color:#222;">${cf.text}</div>
+      </div>`;
+    }).join('');
+    return `${sec('Coach Feedback')}${items}`;
+  })()}
+
+  <!-- FOOTER -->
+  <div style="border-top:1px solid #ccc;margin-top:24px;padding-top:8px;font-size:10px;color:#aaa;text-align:center;">
+    Project KingMaker &nbsp;·&nbsp; ${periodLabel} Report &nbsp;·&nbsp; ${genStr}
+  </div>
+
+</div>`;
+}
+
+function printReport(periodDays, label) {
+  $('print-report').innerHTML = generateReportHTML(periodDays, label);
+  window.print();
+}
+
+/* ─────────────────────────────
+   COACH FEEDBACK
+───────────────────────────────*/
+function openCoachFeedbackModal() {
+  const reviewNum = S.reviewCount || 0;
+  const tagLabel  = reviewNum > 0
+    ? `Tagged to Review #${reviewNum}`
+    : 'No reviews completed yet — will be saved as general feedback';
+
+  openModal('Log Coach Feedback',
+    `<div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;line-height:1.6;">
+       ${tagLabel}
+     </div>
+     <textarea id="cf-input" class="text-input ci-textarea" rows="7"
+       placeholder="Paste or type your coach's comments here..."
+       maxlength="2000"
+       style="width:100%;margin-bottom:6px;font-size:13px;"></textarea>
+     <div id="cf-char-count" style="font-size:10px;color:var(--text-muted);text-align:right;">0 / 2000</div>`,
+    [
+      { label: 'SAVE', cls: 'btn-red', fn: submitCoachFeedback },
+      { label: 'Cancel', cls: 'btn-ghost', fn: closeModal },
+    ]
+  );
+
+  // Wire up char counter after modal renders
+  setTimeout(() => {
+    const ta = $('cf-input');
+    if (ta) ta.addEventListener('input', () => {
+      $('cf-char-count').textContent = `${ta.value.length} / 2000`;
+    });
+    ta?.focus();
+  }, 50);
+}
+
+function submitCoachFeedback() {
+  const text = $('cf-input')?.value.trim();
+  if (!text) { closeModal(); return; }
+  if (!Array.isArray(S.coachFeedback)) S.coachFeedback = [];
+  S.coachFeedback.push({
+    date:      todayStr(),
+    reviewNum: S.reviewCount || 0,
+    text,
+  });
+  save();
+  closeModal();
+  renderCoachFeedbackList();
+  showToast('Coach feedback saved.');
+}
+
+function renderCoachFeedbackList() {
+  const el = $('coach-feedback-list');
+  if (!el) return;
+  const list = Array.isArray(S.coachFeedback) ? S.coachFeedback : [];
+  if (!list.length) {
+    el.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:4px 0;font-style:italic;">
+      No coach feedback logged yet. Tap + LOG after receiving comments from your coach.
+    </div>`;
+    return;
+  }
+  // Show most recent first
+  el.innerHTML = [...list].reverse().map((cf, i) => {
+    const revLabel = cf.reviewNum > 0 ? `Review #${cf.reviewNum}` : 'General';
+    const [,m,d,y] = cf.date.match(/(\d{4})-(\d{2})-(\d{2})/)?.map(Number) || [,0,0,0];
+    const dateLabel = cf.date ? `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1]} ${d}` : '—';
+    const preview   = cf.text.length > 120 ? cf.text.slice(0, 120) + '…' : cf.text;
+    return `
+      <div style="border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;background:var(--surface);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:9px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--orange);">${revLabel}</span>
+          <span style="font-size:10px;color:var(--text-muted);">${dateLabel}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">${preview}</div>
+        ${cf.text.length > 120
+          ? `<button onclick="viewCoachFeedback(${list.length - 1 - i})"
+              style="font-size:10px;color:var(--orange);background:none;border:none;padding:4px 0 0;cursor:pointer;font-weight:700;">
+              READ FULL ↗
+            </button>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function viewCoachFeedback(idx) {
+  const cf = S.coachFeedback?.[idx];
+  if (!cf) return;
+  const revLabel = cf.reviewNum > 0 ? `Review #${cf.reviewNum}` : 'General Feedback';
+  openModal(`Coach Feedback — ${revLabel}`,
+    `<div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">${cf.date}</div>
+     <div style="font-size:13px;color:var(--text);line-height:1.8;white-space:pre-wrap;">${cf.text}</div>`,
+    [{ label: 'Close', cls: 'btn-ghost', fn: closeModal }]
+  );
+}
+
+/* ─────────────────────────────
+   NAVIGATION
+───────────────────────────────*/
+function goto(sc) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));
+  $(`screen-${sc}`).classList.add('active');
+  $(`nav-${sc}`).classList.add('on');
+  $('screen-container').scrollTop = 0;
+  if (sc==='today')   renderToday();
+  if (sc==='config')  renderConfig();
+  if (sc==='history') renderHistory();
+  if (sc==='stats')   renderStats();
+}
+
+/* ─────────────────────────────
+   MODAL
+───────────────────────────────*/
+function openModal(title, bodyHtml, actions) {
+  $('modal-h').textContent = title;
+  $('modal-b').innerHTML   = bodyHtml;
+  const btns = $('modal-btns');
+  btns.innerHTML = '';
+  actions.forEach(a => {
+    const b = document.createElement('button');
+    b.className = `btn ${a.cls}`; b.textContent = a.label; b.onclick = a.fn;
+    btns.appendChild(b);
+  });
+  $('overlay').classList.add('open');
+}
+
+function closeModal()          { $('overlay').classList.remove('open'); }
+function maybeCloseModal(e)    { if (e.target === $('overlay')) closeModal(); }
+
+/* ─────────────────────────────
+   TOAST
+───────────────────────────────*/
+let _tt;
+function showToast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(_tt); _tt = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function $(id) { return document.getElementById(id); }
+
+document.addEventListener('DOMContentLoaded', boot);
+</script>
+
+<div id="print-report"></div>
+
+<!-- ── PWA Install Banner ──────────────────────────────────── -->
+<div id="pwa-install-banner" style="
+  display: none;
+  position: fixed;
+  bottom: calc(var(--nav-h, 60px) + env(safe-area-inset-bottom, 0px) + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: #181818;
+  border: 1px solid #363636;
+  border-radius: 14px;
+  padding: 14px 20px;
+  display: none;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  min-width: 280px;
+  max-width: 90vw;
+">
+  <img src="icon-192.png" width="40" height="40" style="border-radius:10px;flex-shrink:0;" alt="KingMaker icon" />
+  <div style="flex:1;min-width:0;">
+    <div style="color:#f0f0f0;font-size:14px;font-weight:600;line-height:1.3;">Install KingMaker</div>
+    <div style="color:#808080;font-size:12px;margin-top:2px;">Add to home screen for the full experience</div>
+  </div>
+  <button id="pwa-install-btn" style="
+    background: #e63946;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    white-space: nowrap;
+  ">Install</button>
+  <button id="pwa-dismiss-btn" style="
+    background: none;
+    border: none;
+    color: #808080;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    flex-shrink: 0;
+  " aria-label="Dismiss">×</button>
+</div>
+
+<!-- ── Service Worker Registration ────────────────────────── -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('[KingMaker SW] registered, scope:', reg.scope))
+        .catch(err => console.warn('[KingMaker SW] registration failed:', err));
+    });
+  }
+</script>
+
+<!-- ── PWA Install Prompt ──────────────────────────────────── -->
+<script>
+  (function () {
+    let deferredPrompt = null;
+    const banner = document.getElementById('pwa-install-banner');
+    const installBtn = document.getElementById('pwa-install-btn');
+    const dismissBtn = document.getElementById('pwa-dismiss-btn');
+
+    function showBanner() {
+      banner.style.display = 'flex';
+    }
+
+    function hideBanner() {
+      banner.style.display = 'none';
+    }
+
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      deferredPrompt = e;
+      showBanner();
+    });
+
+    installBtn.addEventListener('click', async function () {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log('[KingMaker PWA] install outcome:', outcome);
+      deferredPrompt = null;
+      hideBanner();
+    });
+
+    dismissBtn.addEventListener('click', function () {
+      hideBanner();
+      deferredPrompt = null;
+    });
+
+    window.addEventListener('appinstalled', function () {
+      console.log('[KingMaker PWA] installed successfully');
+      hideBanner();
+      deferredPrompt = null;
+    });
+  })();
+</script>
+
+</body>
+</html>
