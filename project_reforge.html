@@ -2113,20 +2113,6 @@
         <div class="divider"></div>
 
         <div class="config-block">
-          <div class="cfg-label">Appearance</div>
-          <div class="cfg-title">Theme</div>
-          <div class="cfg-desc">Choose your preferred display mode.</div>
-          <div style="display:flex;gap:8px;margin-top:4px;">
-            <button id="theme-btn-dark"  class="btn btn-ghost" onclick="setTheme('dark')"
-              style="flex:1;gap:6px;display:flex;align-items:center;justify-content:center;">🌙 Dark</button>
-            <button id="theme-btn-light" class="btn btn-ghost" onclick="setTheme('light')"
-              style="flex:1;gap:6px;display:flex;align-items:center;justify-content:center;">☀️ Light</button>
-          </div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="config-block">
           <div class="cfg-label">Today's Discipline Task</div>
           <div class="cfg-title">Discipline Task</div>
           <div class="cfg-desc">Assign today's discipline requirement. If not set, the task cannot be marked complete.</div>
@@ -3760,19 +3746,7 @@ function setTheme(t) {
 }
 
 function _syncThemeBtns(t) {
-  const darkBtn  = $('theme-btn-dark');
-  const lightBtn = $('theme-btn-light');
-  if (!darkBtn || !lightBtn) return;
-  [darkBtn, lightBtn].forEach(b => {
-    b.style.borderColor = '';
-    b.style.color       = '';
-    b.style.background  = '';
-  });
-  const active = t === 'dark' ? darkBtn : lightBtn;
-  active.style.borderColor = 'var(--orange)';
-  active.style.color       = 'var(--orange)';
-  active.style.background  = 'rgba(255,107,53,0.08)';
-  // Quick toggle icon: 💡 in dark mode (tap to go light), 🌙 in light mode (tap to go dark)
+  // Quick toggle icon on Today screen: 💡 in dark mode, 🌙 in light mode
   const qtBtn = $('theme-quick-toggle');
   if (qtBtn) qtBtn.textContent = t === 'dark' ? '💡' : '🌙';
 }
