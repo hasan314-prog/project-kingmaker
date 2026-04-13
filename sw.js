@@ -5,7 +5,7 @@
 
 const CACHE_NAME   = 'ironlogic-v1';
 const CORE_ASSETS  = [
-  './project_reforge.html',
+  './project_ironlogic.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
@@ -59,7 +59,7 @@ self.addEventListener('fetch', event => {
         })
         .catch(() => {
           // Completely offline & not cached — return the app shell
-          return caches.match('./project_reforge.html');
+          return caches.match('./project_ironlogic.html');
         });
     })
   );
