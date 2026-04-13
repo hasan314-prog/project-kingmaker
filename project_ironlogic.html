@@ -1587,10 +1587,32 @@
       </div>
       <div class="auth-field">
         <label>Password</label>
-        <input type="password" id="auth-pass" class="text-input" placeholder="Min. 6 characters" autocomplete="current-password" />
+        <div style="position:relative;">
+          <input type="password" id="auth-pass" class="text-input"
+            placeholder="Min. 6 characters" autocomplete="current-password"
+            style="padding-right:40px;box-sizing:border-box;width:100%;" />
+          <button onclick="toggleAuthPassVis()" type="button" id="auth-pass-eye"
+            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);
+                   background:none;border:none;cursor:pointer;font-size:16px;
+                   padding:0;color:var(--text-muted);line-height:1;">👁</button>
+        </div>
+      </div>
+
+      <div class="auth-field" id="auth-confirm-wrap" style="display:none;">
+        <label>Confirm Password</label>
+        <input type="password" id="auth-confirm-pass" class="text-input"
+          placeholder="Repeat your password" autocomplete="new-password" />
       </div>
 
       <div class="auth-error" id="auth-error"></div>
+
+      <div id="auth-forgot-wrap" style="width:100%;text-align:right;margin:-4px 0 12px;">
+        <button onclick="authForgotPassword()" type="button"
+          style="background:none;border:none;color:var(--text-dim);font-size:11px;
+                 cursor:pointer;padding:0;font-family:inherit;text-decoration:underline;">
+          Forgot password?
+        </button>
+      </div>
 
       <button class="btn btn-red" id="auth-submit-btn" onclick="authSubmit()" style="width:100%;">SIGN IN →</button>
 
@@ -2427,6 +2449,35 @@ function authSwitchTab(mode) {
   $('auth-tab-signup').classList.toggle('active', mode === 'signup');
   $('auth-submit-btn').textContent = mode === 'signin' ? 'SIGN IN →' : 'CREATE ACCOUNT →';
   $('auth-error').textContent = '';
+  $('auth-error').style.color = 'var(--red)';
+  $('auth-forgot-wrap').style.display  = mode === 'signin' ? '' : 'none';
+  $('auth-confirm-wrap').style.display = mode === 'signup' ? '' : 'none';
+  if (mode === 'signup') $('auth-confirm-pass').value = '';
+  // Reset password visibility on tab switch
+  const passInp = $('auth-pass');
+  passInp.type = 'password';
+  $('auth-pass-eye').textContent = '👁';
+}
+
+function toggleAuthPassVis() {
+  const inp = $('auth-pass');
+  const eye = $('auth-pass-eye');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  eye.textContent = inp.type === 'password' ? '👁' : '🙈';
+}
+
+async function authForgotPassword() {
+  const email = $('auth-email').value.trim();
+  const errEl = $('auth-error');
+  if (!email) { errEl.textContent = 'Enter your email address first.'; return; }
+  try {
+    await _auth.sendPasswordResetEmail(email);
+    errEl.style.color = '#4caf50';
+    errEl.textContent = '✓ Reset email sent! Check your inbox.';
+  } catch(e) {
+    errEl.style.color = 'var(--red)';
+    errEl.textContent = _friendlyAuthError(e.code);
+  }
 }
 
 async function authSubmit() {
@@ -2437,6 +2488,14 @@ async function authSubmit() {
 
   if (!email || !pass) { errEl.textContent = 'Please enter email and password.'; return; }
   if (pass.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
+
+  if (_authMode === 'signup') {
+    const confirmPass = $('auth-confirm-pass').value;
+    if (pass !== confirmPass) {
+      errEl.textContent = 'Passwords do not match.';
+      return;
+    }
+  }
 
   $('auth-submit-btn').disabled = true;
   $('auth-submit-btn').textContent = 'Please wait…';
@@ -2469,20 +2528,30 @@ function _friendlyAuthError(code) {
 }
 
 function authSignOut() {
-  if (!confirm('Sign out of Project IronLogic?')) return;
-  _auth.signOut().then(() => {
-    _currentUser = null;
-    // Reset to default state
-    S = { days:{}, weights:{}, measurements:{}, measurementUnit:'in',
-      weightUnit:'kg', customTasks:[], stepGoal:10000, deadlineHour:23,
-      onboardingDone:false, onboardingFails:'', onboardingReason:'',
-      pendingPenalty:null, pendingReview:false, reviewCount:0,
-      weeklyReviews:[], coachFeedback:[], theme: S.theme || 'dark',
-      name:'', goal:'', height:'', statsWindow:30,
-    };
-    refreshTasks();
-    showAuthGate();
-  });
+  openModal(
+    'SIGN OUT',
+    'Are you sure you want to sign out? Your data is safely synced to the cloud.',
+    [
+      { label: 'CANCEL',   cls: 'btn-ghost', fn: closeModal },
+      { label: 'SIGN OUT', cls: 'btn-red',   fn: () => {
+          closeModal();
+          _auth.signOut().then(() => {
+            _currentUser = null;
+            S = { days:{}, weights:{}, measurements:{}, measurementUnit:'in',
+              weightUnit:'kg', customTasks:[], stepGoal:10000, deadlineHour:23,
+              onboardingDone:false, onboardingFails:'', onboardingReason:'',
+              pendingPenalty:null, pendingReview:false, reviewCount:0,
+              weeklyReviews:[], coachFeedback:[], theme: S.theme || 'dark',
+              name:'', goal:'', height:'', statsWindow:30,
+            };
+            refreshTasks();
+            try { localStorage.removeItem(KEY); } catch(_) {}
+            showAuthGate();
+          });
+        }
+      },
+    ]
+  );
 }
 
 // ── Firestore sync ────────────────────────────────
