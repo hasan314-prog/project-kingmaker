@@ -2351,14 +2351,14 @@
           </div>
           <div class="ms-body">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
-              <button class="btn btn-ghost" onclick="printReport(7,'Weekly')">Weekly</button>
-              <button class="btn btn-ghost" onclick="printReport(30,'Monthly')">Monthly</button>
-              <button class="btn btn-ghost" onclick="printReport(90,'Quarterly')">Quarterly</button>
-              <button class="btn btn-ghost" onclick="printReport(180,'Half-Yearly')">Half-Yearly</button>
-              <button class="btn btn-ghost" onclick="printReport(365,'Yearly')" style="grid-column:span 2;">Yearly</button>
+              <button class="btn btn-ghost" onclick="openReportPicker(7,'Weekly')">Weekly</button>
+              <button class="btn btn-ghost" onclick="openReportPicker(30,'Monthly')">Monthly</button>
+              <button class="btn btn-ghost" onclick="openReportPicker(90,'Quarterly')">Quarterly</button>
+              <button class="btn btn-ghost" onclick="openReportPicker(180,'Half-Yearly')">Half-Yearly</button>
+              <button class="btn btn-ghost" onclick="openReportPicker(365,'Yearly')" style="grid-column:span 2;">Yearly</button>
             </div>
             <div style="font-size:10px;color:var(--text-muted);line-height:1.6;">
-              Opens browser print dialog. Select <b style="color:var(--text-dim);">Save as PDF</b> to export.
+              Select a date range, then <b style="color:var(--text-dim);">Save as PDF</b> from the print dialog.
             </div>
           </div>
         </div>
@@ -4523,10 +4523,8 @@ function rptPeriodStr(dates) {
   return `${fmt(s)} – ${fmt(e)}`;
 }
 
-// Main report HTML builder
-function generateReportHTML(periodDays, periodLabel) {
-  const curDates  = getDateRange(periodDays, 0);
-  const prevDates = getDateRange(periodDays, periodDays);
+// Main report HTML builder — accepts pre-computed date arrays
+function generateReportHTML(curDates, prevDates, periodLabel) {
   const cur  = computePeriodData(curDates);
   const prev = computePeriodData(prevDates);
 
@@ -4627,9 +4625,65 @@ function generateReportHTML(periodDays, periodLabel) {
 </div>`;
 }
 
-function printReport(periodDays, label) {
-  $('print-report').innerHTML = generateReportHTML(periodDays, label);
+function printReport(curDates, prevDates, label) {
+  $('print-report').innerHTML = generateReportHTML(curDates, prevDates, label);
   window.print();
+}
+
+// ── Date range helpers ────────────────────────────
+function getDateRangeBetween(startStr, endStr) {
+  const arr = [];
+  const cur = new Date(startStr + 'T00:00:00');
+  const end = new Date(endStr   + 'T00:00:00');
+  while (cur <= end) { arr.push(cur.toISOString().split('T')[0]); cur.setDate(cur.getDate()+1); }
+  return arr;
+}
+
+function openReportPicker(presetDays, label) {
+  const todayD  = new Date();
+  const startD  = new Date(); startD.setDate(todayD.getDate() - (presetDays - 1));
+  const fmt     = d => d.toISOString().split('T')[0];
+  const todaySt = fmt(todayD), startSt = fmt(startD);
+
+  openModal(`${label} Report — Select Dates`,
+    `<div style="display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <div style="font-size:10px;font-weight:800;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:6px;">FROM</div>
+        <input type="date" id="rpt-start" class="text-input" value="${startSt}" max="${todaySt}" style="width:100%;box-sizing:border-box;" />
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:800;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:6px;">TO</div>
+        <input type="date" id="rpt-end" class="text-input" value="${todaySt}" max="${todaySt}" style="width:100%;box-sizing:border-box;" />
+      </div>
+      <div id="rpt-err" style="font-size:11px;color:var(--red);min-height:14px;"></div>
+    </div>`,
+    [
+      { label: 'CANCEL',      cls: 'btn-ghost', fn: closeModal },
+      { label: 'GENERATE →',  cls: 'btn-red',   fn: () => generateAndPrint(label) },
+    ]
+  );
+}
+
+function generateAndPrint(label) {
+  const startStr = $('rpt-start').value;
+  const endStr   = $('rpt-end').value;
+  const errEl    = $('rpt-err');
+  errEl.textContent = '';
+
+  if (!startStr || !endStr)   { errEl.textContent = 'Please select both dates.'; return; }
+  if (startStr > endStr)      { errEl.textContent = 'Start date must be before end date.'; return; }
+
+  const curDates  = getDateRangeBetween(startStr, endStr);
+  if (curDates.length > 366)  { errEl.textContent = 'Range too large — max 366 days.'; return; }
+
+  // Previous period = same length before startStr
+  const prevEnd   = new Date(startStr + 'T00:00:00'); prevEnd.setDate(prevEnd.getDate() - 1);
+  const prevStart = new Date(prevEnd); prevStart.setDate(prevStart.getDate() - (curDates.length - 1));
+  const fmt = d => d.toISOString().split('T')[0];
+  const prevDates = getDateRangeBetween(fmt(prevStart), fmt(prevEnd));
+
+  closeModal();
+  printReport(curDates, prevDates, label);
 }
 
 /* ─────────────────────────────
