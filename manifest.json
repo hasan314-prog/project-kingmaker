@@ -1,6 +1,6 @@
 {
-  "name": "Project KingMaker",
-  "short_name": "KingMaker",
+  "name": "Project Eclipse",
+  "short_name": "Eclipse",
   "description": "Elite fitness accountability tracker — discipline, data, dominance.",
   "start_url": "./project_reforge.html",
   "scope": "./",

@@ -1,9 +1,9 @@
 /* ─────────────────────────────────────────────
-   Project KingMaker — Service Worker
+   Project Eclipse — Service Worker
    Cache-first strategy for full offline support
 ───────────────────────────────────────────── */
 
-const CACHE_NAME   = 'kingmaker-v1';
+const CACHE_NAME   = 'eclipse-v1';
 const CORE_ASSETS  = [
   './project_reforge.html',
   './manifest.json',
