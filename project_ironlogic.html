@@ -499,6 +499,8 @@
     .cal-d.fail  { background: var(--red-glow);  border-color: var(--red-dim); color: var(--red); }
     .cal-d.today { border-color: var(--red); color: var(--text); font-weight: 900; }
     .cal-d.empty { background: transparent; border-color: transparent; }
+    .cal-d.clickable { cursor: pointer; transition: filter 0.1s; }
+    .cal-d.clickable:active { filter: brightness(1.35); }
 
     .legend { display: flex; gap: 14px; margin-bottom: 16px; }
     .leg-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); }
@@ -4150,7 +4152,7 @@ function renderHistory() {
       if (r.status==='complete') { cls='done'; comp++; tracked++; }
       else if (r.status==='failed') { cls='fail'; fail++; tracked++; }
     }
-    html += `<div class="cal-d ${cls}">${d}</div>`;
+    html += `<div class="cal-d ${cls} clickable" onclick="showDayDetail('${k}')">${d}</div>`;
   }
 
   $('cal-grid').innerHTML = html;
@@ -4164,6 +4166,57 @@ function renderHistory() {
 
 function histPrev() { hM--; if(hM<0){hM=11;hY--;} renderHistory(); }
 function histNext() { hM++; if(hM>11){hM=0;hY++;} renderHistory(); }
+
+function showDayDetail(k) {
+  const [y, m, d] = k.split('-').map(Number);
+  const dateLabel = new Date(y, m-1, d).toLocaleDateString('en-US',
+    { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+  const r = S.days[k];
+
+  if (!r) {
+    openModal(dateLabel,
+      `<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:12px 0;">No activity recorded for this day.</div>`,
+      [{ label:'CLOSE', cls:'btn-ghost', fn: closeModal }]
+    );
+    return;
+  }
+
+  // Status badge
+  const statusColor = r.status==='complete' ? 'var(--green)' : r.status==='failed' ? 'var(--red)' : 'var(--text-muted)';
+  const statusText  = r.status==='complete' ? '✓ COMPLETE' : r.status==='failed' ? '✗ FAILED' : 'IN PROGRESS';
+
+  // Task rows
+  const taskRows = TASKS.map(t => {
+    const done = r.completedIds && r.completedIds.includes(t.id);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:13px;min-width:16px;color:${done ? 'var(--green)' : 'var(--red)'};">${done ? '✓' : '✗'}</span>
+      <span style="font-size:11px;font-weight:700;letter-spacing:0.04em;color:${done ? 'var(--text)' : 'var(--text-muted)'};">${t.title}</span>
+    </div>`;
+  }).join('');
+
+  // Check-in section
+  let ciHtml = '';
+  if (r.ciFormDone) {
+    const pip = (n, max) => `<span style="letter-spacing:3px;color:var(--orange);">${'●'.repeat(n)}${'○'.repeat(max-n)}</span>`;
+    ciHtml = `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+      <div style="font-size:9px;font-weight:800;letter-spacing:0.15em;color:var(--text-dim);margin-bottom:10px;">CHECK-IN REPORT</div>
+      <div style="display:flex;gap:20px;margin-bottom:8px;">
+        <div><div style="font-size:9px;color:var(--text-muted);margin-bottom:3px;">ENERGY</div>${pip(r.ciEnergy||3,5)}</div>
+        ${r.ciAdherence ? `<div><div style="font-size:9px;color:var(--text-muted);margin-bottom:3px;">ADHERENCE</div>${pip(r.ciAdherence,5)}</div>` : ''}
+      </div>
+      ${r.ciFailReason ? `<div style="font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.4;"><span style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--text-muted);">MISSED TASKS · </span>${r.ciFailReason}</div>` : ''}
+      ${r.ciWentGood  ? `<div style="font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.4;"><span style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--text-muted);">WENT WELL · </span>${r.ciWentGood}</div>`  : ''}
+      ${r.ciWentBad   ? `<div style="font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.4;"><span style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--text-muted);">WENT WRONG · </span>${r.ciWentBad}</div>`   : ''}
+    </div>`;
+  }
+
+  openModal(dateLabel,
+    `<div style="font-size:11px;font-weight:900;letter-spacing:0.15em;color:${statusColor};margin-bottom:14px;">${statusText}</div>
+     <div>${taskRows}</div>
+     ${ciHtml}`,
+    [{ label:'CLOSE', cls:'btn-ghost', fn: closeModal }]
+  );
+}
 
 /* ─────────────────────────────
    RENDER: STATS
