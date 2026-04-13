@@ -1,9 +1,9 @@
 /* ─────────────────────────────────────────────
-   Project Eclipse — Service Worker
+   Project IronLogic — Service Worker
    Cache-first strategy for full offline support
 ───────────────────────────────────────────── */
 
-const CACHE_NAME   = 'eclipse-v1';
+const CACHE_NAME   = 'ironlogic-v1';
 const CORE_ASSETS  = [
   './project_reforge.html',
   './manifest.json',
