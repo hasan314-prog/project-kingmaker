@@ -2485,6 +2485,7 @@ async function authSubmit() {
   const pass  = $('auth-pass').value;
   const errEl = $('auth-error');
   errEl.textContent = '';
+  errEl.style.color = 'var(--red)';   // always reset to red before validating
 
   if (!email || !pass) { errEl.textContent = 'Please enter email and password.'; return; }
   if (pass.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
@@ -2510,7 +2511,7 @@ async function authSubmit() {
   } catch(e) {
     errEl.textContent = _friendlyAuthError(e.code);
     $('auth-submit-btn').disabled = false;
-    authSwitchTab(_authMode);
+    $('auth-submit-btn').textContent = _authMode === 'signin' ? 'SIGN IN →' : 'CREATE ACCOUNT →';
   }
 }
 
