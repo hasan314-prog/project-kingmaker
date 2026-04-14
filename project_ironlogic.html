@@ -2161,6 +2161,25 @@
           </div>
         </div>
 
+        <!-- ── Hevy Integration ── -->
+        <div class="config-block">
+          <div class="cfg-label">Integrations</div>
+          <div class="cfg-title">Hevy Workouts</div>
+          <div class="cfg-desc">Auto-complete your Training task when a workout is logged in Hevy. Requires a <b style="color:var(--text-dim);">Hevy Pro</b> subscription.</div>
+          <div class="auth-field" style="margin-top:10px;">
+            <label>API Key</label>
+            <input type="text" id="hevy-api-key" class="text-input"
+              placeholder="Get from hevy.com/settings → Developer"
+              autocomplete="off" spellcheck="false" />
+          </div>
+          <div id="hevy-status" style="font-size:11px;min-height:16px;margin:6px 0 8px;"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-red btn-sm" onclick="saveHevyKey()">SAVE</button>
+            <button class="btn btn-ghost btn-sm" onclick="testHevyConnection()">TEST CONNECTION</button>
+            <button class="btn btn-ghost btn-sm" onclick="syncHevy(true)">SYNC NOW</button>
+          </div>
+        </div>
+
         <div class="config-block">
           <div class="cfg-label">Daily Step Target</div>
           <div class="cfg-title">Step Goal</div>
@@ -2545,7 +2564,7 @@ function authSignOut() {
               onboardingDone:false, onboardingFails:'', onboardingReason:'',
               pendingPenalty:null, pendingReview:false, reviewCount:0,
               weeklyReviews:[], coachFeedback:[], theme: S.theme || 'dark',
-              name:'', goal:'', height:'', statsWindow:30,
+              name:'', goal:'', height:'', statsWindow:30, hevyApiKey:'',
             };
             refreshTasks();
             try { localStorage.removeItem(KEY); } catch(_) {}
@@ -2656,6 +2675,8 @@ let S = {
   coachFeedback:   [],   // [{ date: "YYYY-MM-DD", reviewNum: n, text: "..." }]
   // Appearance
   theme:           'dark',
+  // Integrations
+  hevyApiKey:      '',
 };
 
 let statsWindow = 30; // days (0 = all time)
@@ -2835,7 +2856,7 @@ function freshDay() {
   };
 }
 
-function launchApp() { startTimer(); renderAll(); }
+function launchApp() { startTimer(); renderAll(); syncHevy(false); }
 
 /* ─────────────────────────────
    GATES
@@ -3879,6 +3900,97 @@ function renderConfig() {
   $('weight-unit-select').value   = S.weightUnit;
   if ($('cfg-user-email')) $('cfg-user-email').textContent = _currentUser ? _currentUser.email : '—';
   renderCustomTasksList();
+  // Hevy
+  const hevyInp = $('hevy-api-key');
+  if (hevyInp) {
+    hevyInp.value = S.hevyApiKey || '';
+    _updateHevyStatus(S.hevyApiKey ? 'connected' : 'none');
+  }
+}
+
+/* ─────────────────────────────
+   HEVY INTEGRATION
+───────────────────────────────*/
+const HEVY_BASE = 'https://api.hevyapp.com/v1';
+
+function _updateHevyStatus(state, msg) {
+  const el = $('hevy-status');
+  if (!el) return;
+  const colors = { connected:'var(--green)', error:'var(--red)', loading:'var(--text-dim)', none:'var(--text-muted)' };
+  const labels = { connected:'✓ Connected', error:'✗ ' + (msg||'Error'), loading:'Connecting…', none:'No API key saved' };
+  el.style.color   = colors[state] || 'var(--text-muted)';
+  el.textContent   = labels[state] || msg || '';
+}
+
+function saveHevyKey() {
+  const key = ($('hevy-api-key')?.value || '').trim();
+  S.hevyApiKey = key;
+  save();
+  if (key) {
+    _updateHevyStatus('loading');
+    testHevyConnection();
+  } else {
+    _updateHevyStatus('none');
+    showToast('Hevy API key removed.');
+  }
+}
+
+async function testHevyConnection() {
+  const key = S.hevyApiKey;
+  if (!key) { _updateHevyStatus('error', 'No API key. Enter one above.'); return; }
+  _updateHevyStatus('loading');
+  try {
+    const res = await fetch(`${HEVY_BASE}/workouts?page=1&pageSize=1`, {
+      headers: { 'api-key': key }
+    });
+    if (res.ok) {
+      _updateHevyStatus('connected');
+      showToast('✓ Hevy connected successfully!');
+    } else if (res.status === 401) {
+      _updateHevyStatus('error', 'Invalid API key.');
+    } else {
+      _updateHevyStatus('error', `Server error (${res.status})`);
+    }
+  } catch(e) {
+    _updateHevyStatus('error', 'Network error — check connection.');
+  }
+}
+
+async function syncHevy(manual) {
+  if (!S.hevyApiKey) return;
+  const today = todayStr();
+  try {
+    const res = await fetch(`${HEVY_BASE}/workouts?page=1&pageSize=10`, {
+      headers: { 'api-key': S.hevyApiKey }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const workouts = data.workouts || [];
+
+    // Find any workout that started today in local timezone
+    const hasToday = workouts.some(w => {
+      if (!w.start_time) return false;
+      return new Date(w.start_time).toLocaleDateString('en-CA') === today;
+    });
+
+    if (hasToday) {
+      const day = S.days[today];
+      if (day && !day.completedIds.includes('training')) {
+        day.completedIds.push('training');
+        if (day.completedIds.length === TASKS.length) sealDay();
+        save();
+        renderToday();
+        showToast('🏋️ Training auto-completed from Hevy!');
+      } else if (manual) {
+        showToast('Training already marked — Hevy sync up to date.');
+      }
+    } else if (manual) {
+      showToast('No Hevy workout found for today yet.');
+    }
+  } catch(e) {
+    if (manual) showToast('Hevy sync failed — check connection.');
+    console.warn('[IronLogic] Hevy sync error:', e);
+  }
 }
 
 function addCustomTask() {
