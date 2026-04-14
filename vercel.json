@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/project_ironlogic.html" }
+  ]
+}
