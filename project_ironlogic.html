@@ -3777,7 +3777,6 @@ function renderToday() {
   $('task-cards').innerHTML = TASKS.map(t => {
     const isComplete = day.completedIds.includes(t.id);
     const instruction = t.instruction;
-    const stepNote    = t.id === 'steps' ? `Target: ${S.stepGoal.toLocaleString()} steps.` : null;
 
     const statusClass = isComplete ? 'complete' : (dayFailed && !isComplete ? 'failed' : 'pending');
     const statusText  = isComplete ? 'COMPLETE' : (dayFailed && !isComplete ? 'FAILED' : 'PENDING');
@@ -3796,8 +3795,6 @@ function renderToday() {
       btnHtml = `<button class="tc-btn pending-btn" onclick="completeTask('${t.id}')"><span class="tc-btn-icon">○</span> MARK COMPLETE</button>`;
     }
 
-    const stepLine = stepNote ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${stepNote}</div>` : '';
-
     return `
       <div class="task-card ${cardClass}">
         <div class="tc-head">
@@ -3806,7 +3803,6 @@ function renderToday() {
         </div>
         <div class="tc-body">
           <div class="tc-instruction">${instruction}</div>
-          ${stepLine}
           <div class="tc-detail">${t.detail}</div>
           <div style="margin-top:2px;">${btnHtml}</div>
         </div>
