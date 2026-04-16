@@ -3,7 +3,7 @@
    Cache-first strategy for full offline support
 ───────────────────────────────────────────── */
 
-const CACHE_NAME   = 'ironlogic-v2';
+const CACHE_NAME   = 'ironlogic-v3';
 const CORE_ASSETS  = [
   './project_ironlogic.html',
   './manifest.json',
