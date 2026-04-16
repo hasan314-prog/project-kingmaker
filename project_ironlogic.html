@@ -1642,7 +1642,7 @@
         </div>
         <div class="lp-feature">
           <div class="lp-feat-icon">⚑</div>
-          <div class="lp-feat-label">8-Day Reviews</div>
+          <div class="lp-feat-label">Weekly Reviews</div>
         </div>
         <div class="lp-feature">
           <div class="lp-feat-icon">📄</div>
@@ -2596,7 +2596,7 @@ const LEVELS = [
 // Fixed tasks — always present
 const _TASKS_PRE = [
   { id:'training',  num:'01', title:'TRAINING/RUNNING', instruction:'Complete your full training or running session.', detail:'No shortened sessions. No substitutions. No rest day excuses.' },
-  { id:'steps',     num:'02', title:'STUDY FOR 30 MINUTES', instruction:'Keep exploring new ideas', detail:'Sedentary days are failed days. Move.' },
+  { id:'steps',     num:'02', title:'STUDY FOR 30 MINUTES', instruction:'Keep exploring new ideas', detail:'Active brain Active life.' },
   { id:'nutrition', num:'03', title:'NUTRITION', instruction:'Execute your nutrition protocol exactly.', detail:'No deviations. No cheat meals. No rationalizations.' },
 ];
 const _TASK_CHECKIN = { id:'checkin', title:'DAILY CHECK-IN', instruction:'Complete the daily accountability report', detail:'Report energy level, task execution, and body weight. Cannot be skipped.' };
@@ -3428,7 +3428,7 @@ function checkWeeklyReview() {
   if (S.pendingReview) return;
   const tracked  = Object.keys(S.days).filter(k => S.days[k]?.status !== 'pending').length;
   const reviews  = S.reviewCount || 0;
-  const due      = Math.floor(tracked / 8);
+  const due      = Math.floor(tracked / 7);
   if (due > reviews) { S.pendingReview = true; save(); }
 }
 
@@ -3453,8 +3453,8 @@ function showGateWeeklyReview() {
   });
   const mUnit = $('wr-munit'); if (mUnit) mUnit.textContent = S.measurementUnit || 'in';
 
-  // Compute last 8 tracked days stats
-  const keys   = getLastNTracked(8);
+  // Compute last 7 tracked days stats
+  const keys   = getLastNTracked(7);
   const comp   = keys.filter(k => S.days[k]?.status === 'complete').length;
   const failed = keys.filter(k => S.days[k]?.status === 'failed').length;
   const rate   = keys.length > 0 ? Math.round((comp / keys.length) * 100) : 0;
@@ -3499,7 +3499,7 @@ function submitWeeklyReview() {
   }
 
   // Validate missed reason if any failures
-  const keys   = getLastNTracked(8);
+  const keys   = getLastNTracked(7);
   const failed = keys.filter(k => S.days[k]?.status === 'failed').length;
   const comp   = keys.filter(k => S.days[k]?.status === 'complete').length;
   const rate   = keys.length > 0 ? Math.round((comp / keys.length) * 100) : 0;
