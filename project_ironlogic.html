@@ -2322,6 +2322,7 @@
         <div class="metric-section">
           <div class="ms-header">
             <div class="ms-title">Measurements — <span id="stats-meas-unit">in</span></div>
+            <button class="ms-action-btn" onclick="openMeasLog()">+ LOG</button>
           </div>
           <div class="ms-body">
             <div class="meas-pill-row" id="meas-pill-row"></div>
@@ -2925,31 +2926,95 @@ function sealDay() {
 /* ─────────────────────────────
    WEIGHT LOGGING
 ───────────────────────────────*/
-function openWeightLog() {
-  const today = todayStr();
-  const current = S.weights[today] ? S.weights[today] : '';
+function openWeightLog(prefillDate) {
+  const today   = todayStr();
+  const selDate = prefillDate || today;
+  const current = S.weights[selDate] != null ? S.weights[selDate] : '';
   openModal('Log Body Weight',
-    `<p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.5;">
-       Enter today's weight in ${S.weightUnit}. One entry per day.
-     </p>
-     <div class="input-row">
-       <input type="number" id="weight-input" class="text-input"
-         placeholder="e.g., ${S.weightUnit==='kg'?'84':'185'}"
-         value="${current}" step="0.1" min="50" max="500" style="font-size:20px;font-weight:700;" />
+    `<div style="display:flex;flex-direction:column;gap:12px;">
+       <div>
+         <div style="font-size:9px;font-weight:800;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:5px;">DATE</div>
+         <input type="date" id="weight-date" class="text-input"
+           value="${selDate}" max="${today}"
+           onchange="const ex=S.weights[this.value]; $('weight-input').value=ex!=null?ex:'';"
+           style="width:100%;box-sizing:border-box;" />
+       </div>
+       <div>
+         <div style="font-size:9px;font-weight:800;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:5px;">WEIGHT (${S.weightUnit})</div>
+         <input type="number" id="weight-input" class="text-input"
+           placeholder="e.g., ${S.weightUnit==='kg'?'84':'185'}"
+           value="${current}" step="0.1" min="30" max="700"
+           style="font-size:20px;font-weight:700;width:100%;box-sizing:border-box;" />
+       </div>
      </div>`,
     [
       { label: 'SAVE', cls: 'btn-red', fn: () => {
-          const v = parseFloat($('weight-input')?.value);
-          if (!v || v < 50) { showToast('Enter a valid weight.'); return; }
-          S.weights[today] = v;
+          const date = $('weight-date')?.value || today;
+          const v    = parseFloat($('weight-input')?.value);
+          if (!v || v < 30) { showToast('Enter a valid weight.'); return; }
+          S.weights[date] = v;
           save(); closeModal(); renderStats();
-          showToast(`Weight logged: ${v} ${S.weightUnit}`);
+          showToast(`Weight logged: ${v} ${S.weightUnit}${date !== today ? ' for ' + date : ''}`);
         }
       },
       { label: 'Cancel', cls: 'btn-ghost', fn: closeModal },
     ]
   );
   setTimeout(()=>{ const inp = $('weight-input'); if (inp) { inp.focus(); inp.select(); } }, 100);
+}
+
+/* ─────────────────────────────
+   MEASUREMENT LOGGING
+───────────────────────────────*/
+function openMeasLog(prefillDate) {
+  const today   = todayStr();
+  const selDate = prefillDate || today;
+  const existing = S.measurements?.[selDate] || {};
+
+  const fieldsHtml = MEAS_FIELDS.map(f =>
+    `<div>
+       <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:4px;">${f.label}</div>
+       <input type="number" id="ml-${f.key}" class="text-input"
+         value="${existing[f.key] != null ? existing[f.key] : ''}"
+         placeholder="—" step="0.1" min="0" max="300"
+         style="width:100%;box-sizing:border-box;" />
+     </div>`
+  ).join('');
+
+  openModal(`Log Measurements (${S.measurementUnit || 'in'})`,
+    `<div style="display:flex;flex-direction:column;gap:12px;">
+       <div>
+         <div style="font-size:9px;font-weight:800;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:5px;">DATE</div>
+         <input type="date" id="meas-log-date" class="text-input"
+           value="${selDate}" max="${today}"
+           onchange="const ex=S.measurements?.[this.value]||{}; MEAS_FIELDS.forEach(f=>{ const el=$('ml-'+f.key); if(el) el.value=ex[f.key]!=null?ex[f.key]:''; });"
+           style="width:100%;box-sizing:border-box;" />
+       </div>
+       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">${fieldsHtml}</div>
+       <div style="font-size:10px;color:var(--text-muted);">Leave blank to skip a field.</div>
+     </div>`,
+    [
+      { label: 'SAVE',   cls: 'btn-red',   fn: saveMeasLog  },
+      { label: 'Cancel', cls: 'btn-ghost',  fn: closeModal  },
+    ]
+  );
+}
+
+function saveMeasLog() {
+  const date  = $('meas-log-date')?.value || todayStr();
+  const mData = {};
+  MEAS_FIELDS.forEach(f => {
+    const v = parseFloat($(`ml-${f.key}`)?.value);
+    if (v && v > 0) mData[f.key] = v;
+  });
+  if (Object.keys(mData).length === 0) {
+    showToast('Enter at least one measurement.');
+    return;
+  }
+  if (!S.measurements) S.measurements = {};
+  S.measurements[date] = { ...(S.measurements[date] || {}), ...mData };
+  save(); closeModal(); renderStats();
+  showToast(`Measurements saved${date !== todayStr() ? ' for ' + date : ''}.`);
 }
 
 /* ─────────────────────────────
@@ -2986,12 +3051,13 @@ function getTaskCompliance() {
 }
 
 function getLast14Weights() {
-  const result = [];
-  for (let i = 13; i >= 0; i--) {
-    const k = daysAgo(i);
-    if (S.weights[k] != null) result.push({ date: k, w: S.weights[k] });
-  }
-  return result;
+  // Returns all logged weight entries sorted by date (oldest → newest).
+  // Name kept for compatibility; now shows full history.
+  if (!S.weights) return [];
+  return Object.keys(S.weights)
+    .filter(k => S.weights[k] != null)
+    .sort()
+    .map(k => ({ date: k, w: S.weights[k] }));
 }
 
 function buildWeightSVG(entries) {
