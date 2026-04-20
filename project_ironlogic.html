@@ -2433,6 +2433,7 @@ const _auth = firebase.auth();
 const _db   = firebase.firestore();
 let _currentUser = null;
 let _saveTimer   = null;
+let _dataLoaded  = false;   // true only after Firestore/localStorage data is confirmed loaded
 let _authMode    = 'signin';   // 'signin' | 'signup'
 
 // ── Auth gate UI ──────────────────────────────────
@@ -2540,6 +2541,7 @@ function authSignOut() {
           closeModal();
           _auth.signOut().then(() => {
             _currentUser = null;
+            _dataLoaded  = false;
             S = { days:{}, weights:{}, measurements:{}, measurementUnit:'in',
               weightUnit:'kg', customTasks:[], stepGoal:10000, deadlineHour:23,
               onboardingDone:false, onboardingFails:'', onboardingReason:'',
@@ -2560,6 +2562,7 @@ function authSignOut() {
 // ── Firestore sync ────────────────────────────────
 async function loadFromFirestore() {
   if (!_currentUser) return;
+  _dataLoaded = false;   // block saves until we've confirmed the loaded state
   try {
     const snap = await _db.collection('users').doc(_currentUser.uid).get();
     if (snap.exists) {
@@ -2578,6 +2581,7 @@ async function loadFromFirestore() {
     console.warn('[KM] Firestore load failed, falling back to localStorage:', e);
     load();
   }
+  _dataLoaded = true;    // data confirmed — saves are now safe
 }
 
 /* ─────────────────────────────
@@ -2663,8 +2667,9 @@ let statsWindow = 30; // days (0 = all time)
 function save() {
   // 1. Always persist locally for instant reads / offline support
   try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(_) {}
-  // 2. Debounce Firestore write (1.5 s) to avoid hammering on rapid changes
-  if (_currentUser) {
+  // 2. Debounce Firestore write — only after data has been fully loaded
+  //    to prevent an empty default S from overwriting real cloud data.
+  if (_currentUser && _dataLoaded) {
     clearTimeout(_saveTimer);
     _saveTimer = setTimeout(() => {
       _db.collection('users').doc(_currentUser.uid)
