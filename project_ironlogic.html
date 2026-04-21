@@ -4476,17 +4476,18 @@ function computePeriodData(dates) {
   };
 }
 
-// Render a plain HTML table for the report
+// Render a styled HTML table for the report
 function rptTable(rows) {
   const colW = ['40%', '20%', '20%', '20%'];
-  let h = '<table style="width:100%;border-collapse:collapse;font-size:11px;">';
+  let h = '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:4px;border-radius:6px;overflow:hidden;">';
   rows.forEach((row, ri) => {
-    h += '<tr>';
+    const hdr   = ri === 0;
+    const rowBg = hdr ? '#1a1a1a' : ri % 2 === 0 ? '#f7f7f7' : '#ffffff';
+    h += `<tr style="background:${rowBg};">`;
     row.forEach((cell, ci) => {
-      const hdr = ri === 0;
       const s = hdr
-        ? 'font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#666;padding:4px 6px 5px;border-bottom:1px solid #ccc;text-align:left;'
-        : `padding:5px 6px;border-bottom:1px solid #f0f0f0;vertical-align:top;color:${ci>0?'#222':'#000'};`;
+        ? 'font-size:9px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#ffffff;padding:7px 10px;text-align:left;'
+        : `padding:7px 10px;border-bottom:1px solid #ebebeb;vertical-align:top;color:${ci===0?'#111':'#333'};font-weight:${ci===0?'600':'400'};`;
       const tag = hdr ? 'th' : 'td';
       h += `<${tag} style="${s}width:${colW[ci]||'auto'}">${cell || '—'}</${tag}>`;
     });
@@ -4495,22 +4496,25 @@ function rptTable(rows) {
   return h + '</table>';
 }
 
-// Delta arrow string (no colour — print is monochrome)
+// Coloured delta arrow
 function rptDelta(cur, prev, higherIsBetter, decimals) {
   const c = parseFloat(cur), p = parseFloat(prev);
   if (isNaN(c) || isNaN(p)) return '—';
   const diff = c - p;
-  if (Math.abs(diff) < 0.05) return '→ –';
+  if (Math.abs(diff) < 0.05) return '<span style="color:#999;">→ –</span>';
   const arrow = diff > 0 ? '▲' : '▼';
   const d     = decimals != null ? Math.abs(diff).toFixed(decimals) : Math.abs(diff) % 1 === 0 ? Math.abs(diff) : Math.abs(diff).toFixed(1);
-  return `${arrow} ${d}`;
+  const good  = (diff > 0) === higherIsBetter;
+  const color = good ? '#2e7d32' : '#c62828';
+  return `<span style="color:${color};font-weight:700;">${arrow} ${d}</span>`;
 }
 
 function rptRateDelta(cur, prev) {
   if (cur === null || prev === null) return '—';
   const diff = cur - prev;
-  if (Math.abs(diff) < 0.5) return '→ –';
-  return `${diff > 0 ? '▲' : '▼'} ${Math.abs(diff)}%`;
+  if (Math.abs(diff) < 0.5) return '<span style="color:#999;">→ –</span>';
+  const color = diff > 0 ? '#2e7d32' : '#c62828';
+  return `<span style="color:${color};font-weight:700;">${diff > 0 ? '▲' : '▼'} ${Math.abs(diff)}%</span>`;
 }
 
 // Weight section HTML
@@ -4519,7 +4523,8 @@ function rptWeightSection(cur, prev, wUnit) {
   const wDelta = (p) => {
     if (!p.weightFirst || !p.weightLast || p.weightFirst.date === p.weightLast.date) return '—';
     const d = p.weightLast.val - p.weightFirst.val;
-    return `${d < 0 ? '▼' : '▲'} ${Math.abs(d).toFixed(1)} ${wUnit} (${((d / p.weightFirst.val) * 100).toFixed(1)}%)`;
+    const color = d < 0 ? '#2e7d32' : '#c62828';
+    return `<span style="color:${color};font-weight:700;">${d < 0 ? '▼' : '▲'} ${Math.abs(d).toFixed(1)} ${wUnit} (${Math.abs((d / p.weightFirst.val) * 100).toFixed(1)}%)</span>`;
   };
   const wRange = (p) => p.weightFirst
     ? `${p.weightFirst.val} → ${p.weightLast?.val ?? p.weightFirst.val} ${wUnit}`
@@ -4554,7 +4559,13 @@ function rptMeasurementsSection(cur, prev, unit) {
     const pD  = pFirst[f] != null && pLast[f] != null ? pLast[f] - pFirst[f] : null;
     const cStr = cFirst[f] != null ? `${cFirst[f]} → ${cLast[f] ?? cFirst[f]}` : '—';
     const pStr = pFirst[f] != null ? `${pFirst[f]} → ${pLast[f] ?? pFirst[f]}` : '—';
-    const chg  = cD !== null ? `${cD < 0 ? '▼' : '▲'} ${Math.abs(cD).toFixed(1)}` : pD !== null ? `(prev: ${pD < 0 ? '▼' : '▲'}${Math.abs(pD).toFixed(1)})` : '—';
+    let chg = '—';
+    if (cD !== null) {
+      const color = cD < 0 ? '#2e7d32' : '#c62828';
+      chg = `<span style="color:${color};font-weight:700;">${cD < 0 ? '▼' : '▲'} ${Math.abs(cD).toFixed(1)}</span>`;
+    } else if (pD !== null) {
+      chg = `<span style="color:#888;">(prev: ${pD < 0 ? '▼' : '▲'}${Math.abs(pD).toFixed(1)})</span>`;
+    }
     rows.push([label, cStr, pStr, chg]);
   });
   return rptTable(rows);
@@ -4566,21 +4577,23 @@ function rptReflectionSection(cur, summarize) {
   if (!good.length && !bad.length) return '<p style="color:#999;font-style:italic;font-size:11px;">No reflection notes in this period.</p>';
 
   const MAX = summarize ? 3 : 999;
-  const noteBlock = (notes, label) => {
+  const noteBlock = (notes, label, borderColor, labelColor) => {
     if (!notes.length) return '';
     const shown = notes.slice(0, MAX);
-    const more  = notes.length > MAX ? ` <span style="color:#999;">(${notes.length - MAX} more not shown)</span>` : '';
-    let s = `<div style="font-weight:700;font-size:11px;margin:10px 0 5px;">${label} (${notes.length})${more}</div>`;
+    const more  = notes.length > MAX ? ` <span style="color:#999;font-weight:400;">(+${notes.length - MAX} more)</span>` : '';
+    let s = `<div style="font-weight:800;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:${labelColor};margin:12px 0 6px;">${label} (${notes.length})${more}</div>`;
     shown.forEach(n => {
       const [,m,d] = n.date.split('-').map(Number);
-      s += `<div style="font-size:11px;padding:3px 0 3px 12px;border-left:2px solid #ccc;margin-bottom:4px;color:#333;">
-        <span style="color:#999;font-size:10px;margin-right:6px;">${m}/${d}</span>${n.text}
+      s += `<div style="font-size:11px;padding:6px 10px;border-left:3px solid ${borderColor};background:${borderColor}12;margin-bottom:5px;border-radius:0 4px 4px 0;">
+        <span style="font-size:9px;font-weight:700;color:${borderColor};margin-right:8px;letter-spacing:0.06em;">${m}/${d}</span>
+        <span style="color:#222;">${n.text}</span>
       </div>`;
     });
     return s;
   };
 
-  return noteBlock(good, '✓ What went well') + noteBlock(bad, '✗ What didn\'t go well');
+  return noteBlock(good, '✓ What went well', '#2e7d32', '#2e7d32')
+       + noteBlock(bad,  '✗ What didn\'t go well', '#c62828', '#c62828');
 }
 
 // Build period label string for date range
@@ -4604,28 +4617,55 @@ function generateReportHTML(curDates, prevDates, periodLabel) {
   const genStr = today.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
   const summarizeRef = curDates.length > 7;
 
-  const sec = (title) =>
-    `<div style="font-size:10px;font-weight:900;letter-spacing:0.14em;text-transform:uppercase;
-      border-bottom:1px solid #ccc;padding-bottom:4px;margin:18px 0 8px;color:#333;">${title}</div>`;
+  const sec = (title, color) =>
+    `<div style="background:${color||'#ff6b35'};color:#fff;font-size:9px;font-weight:900;
+      letter-spacing:0.16em;text-transform:uppercase;padding:6px 12px;margin:20px 0 8px;
+      border-radius:4px;">${title}</div>`;
+
+  const rateColor = cur.rate === null ? '#888' : cur.rate >= 80 ? '#2e7d32' : cur.rate >= 60 ? '#e65100' : '#c62828';
+  const ratePill  = cur.rate !== null
+    ? `<span style="background:${rateColor};color:#fff;font-size:11px;font-weight:800;
+        padding:2px 10px;border-radius:20px;letter-spacing:0.04em;">${cur.rate}%</span>`
+    : '<span style="color:#888;">—</span>';
+
+  const streakPill = `<span style="background:#ff6b35;color:#fff;font-size:11px;font-weight:800;
+    padding:2px 10px;border-radius:20px;">${S.streak} day${S.streak===1?'':'s'}</span>`;
 
   const prevPeriodLabel = `Prev ${periodLabel.toLowerCase()}`;
 
   return `
-<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:12px;color:#111;max-width:720px;margin:0 auto;padding:20px;">
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:12px;color:#111;max-width:720px;margin:0 auto;padding:24px;">
 
-  <!-- HEADER -->
-  <div style="border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:4px;">
-    <div style="font-size:20px;font-weight:900;letter-spacing:0.06em;text-transform:uppercase;">Project IronLogic</div>
-    <div style="font-size:13px;font-weight:700;margin-top:2px;">${periodLabel} Progress Report</div>
-    <div style="font-size:11px;color:#555;margin-top:8px;line-height:1.8;">
-      <b>Name:</b> ${S.name || '—'} &nbsp;·&nbsp;
-      <b>Level:</b> ${level.level.name} &nbsp;·&nbsp;
-      <b>Current Streak:</b> ${S.streak} days &nbsp;·&nbsp;
-      <b>Best Streak:</b> ${S.bestStreak} days<br>
-      <b>Period:</b> ${rptPeriodStr(curDates)} &nbsp;·&nbsp;
-      <b>Generated:</b> ${genStr}
+  <!-- HEADER BANNER -->
+  <div style="background:#0f0f0f;color:#fff;padding:20px 24px;border-radius:8px;margin-bottom:16px;">
+    <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:22px;font-weight:900;letter-spacing:0.06em;text-transform:uppercase;">🏋️ Project IronLogic</span>
+      <span style="font-size:12px;font-weight:700;color:#ff6b35;letter-spacing:0.1em;text-transform:uppercase;">${periodLabel} Report</span>
     </div>
-    ${S.goal ? `<div style="font-size:11px;color:#444;margin-top:8px;padding:8px 12px;background:#f8f8f8;border-left:3px solid #333;font-style:italic;">"${S.goal.length > 200 ? S.goal.slice(0,200)+'…' : S.goal}"</div>` : ''}
+    <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:18px;font-size:11px;color:#aaa;line-height:2;">
+      <span>👤 <b style="color:#fff;">${S.name || '—'}</b></span>
+      <span>🏅 <b style="color:#fff;">${level.level.name}</b></span>
+      <span>🔥 Streak: ${streakPill}</span>
+      <span>📅 Best: <b style="color:#fff;">${S.bestStreak} days</b></span>
+    </div>
+    <div style="margin-top:8px;font-size:10px;color:#666;">
+      ${rptPeriodStr(curDates)} &nbsp;·&nbsp; Generated ${genStr}
+    </div>
+    ${S.goal ? `<div style="margin-top:12px;padding:8px 12px;background:#1e1e1e;border-left:3px solid #ff6b35;border-radius:0 4px 4px 0;font-size:11px;color:#ccc;font-style:italic;line-height:1.6;">"${S.goal.length > 200 ? S.goal.slice(0,200)+'…' : S.goal}"</div>` : ''}
+  </div>
+
+  <!-- QUICK STATS PILLS -->
+  <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:4px;">
+    ${[
+      { label:'Tracked',  val: cur.tracked ?? '—',    bg:'#1565c0' },
+      { label:'Complete', val: cur.complete ?? '—',   bg:'#2e7d32' },
+      { label:'Failed',   val: cur.failed ?? '—',     bg:'#c62828' },
+      { label:'Rate',     val: cur.rate !== null ? cur.rate+'%' : '—', bg: rateColor },
+      { label:'Checked In', val: cur.checkedIn ?? '—', bg:'#6a1b9a' },
+    ].map(p => `<div style="background:${p.bg};color:#fff;border-radius:8px;padding:8px 14px;min-width:70px;text-align:center;">
+      <div style="font-size:18px;font-weight:900;">${p.val}</div>
+      <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;opacity:0.85;margin-top:2px;">${p.label}</div>
+    </div>`).join('')}
   </div>
 
   ${sec('Execution Summary')}
@@ -4639,7 +4679,7 @@ function generateReportHTML(curDates, prevDates, periodLabel) {
     ['Days Checked In', cur.checkedIn,       prev.checkedIn,       rptDelta(cur.checkedIn, prev.checkedIn, true, 0)],
   ])}
 
-  ${sec('Task Compliance')}
+  ${sec('Task Compliance', '#1565c0')}
   ${rptTable([
     ['Task', 'This period', prevPeriodLabel, 'Change'],
     ...TASKS.map(t => {
@@ -4655,20 +4695,20 @@ function generateReportHTML(curDates, prevDates, periodLabel) {
     }),
   ])}
 
-  ${sec('Check-in Insights')}
+  ${sec('Check-in Insights', '#6a1b9a')}
   ${rptTable([
     ['',                    'This period', prevPeriodLabel, 'Change'],
     ['Avg Energy (1–5)',    cur.avgEnergy    ?? '—', prev.avgEnergy    ?? '—', rptDelta(cur.avgEnergy,    prev.avgEnergy,    true, 1)],
     ['Avg Adherence (1–5)', cur.avgAdherence ?? '—', prev.avgAdherence ?? '—', rptDelta(cur.avgAdherence, prev.avgAdherence, true, 1)],
   ])}
 
-  ${sec(`Body Weight (${wUnit})`)}
+  ${sec(`Body Weight (${wUnit})`, '#00695c')}
   ${rptWeightSection(cur, prev, wUnit)}
 
-  ${sec(`Body Measurements (${mUnit})`)}
+  ${sec(`Body Measurements (${mUnit})`, '#00695c')}
   ${rptMeasurementsSection(cur, prev, mUnit)}
 
-  ${sec('Reflection Notes')}
+  ${sec('Reflection Notes', '#4e342e')}
   ${rptReflectionSection(cur, summarizeRef)}
 
   ${(() => {
@@ -4676,19 +4716,20 @@ function generateReportHTML(curDates, prevDates, periodLabel) {
     if (!cfList.length) return '';
     const items = cfList.map(cf => {
       const revLabel = cf.reviewNum > 0 ? `Review #${cf.reviewNum}` : 'General';
-      return `<div style="margin-bottom:12px;padding:10px 12px;border-left:3px solid #333;background:#f8f8f8;">
-        <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#555;margin-bottom:5px;">
+      return `<div style="margin-bottom:12px;padding:12px 14px;border-left:4px solid #ff6b35;background:#fff8f5;border-radius:0 6px 6px 0;">
+        <div style="font-size:9px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#ff6b35;margin-bottom:6px;">
           ${revLabel} &nbsp;·&nbsp; ${cf.date}
         </div>
-        <div style="font-size:11px;line-height:1.7;white-space:pre-wrap;color:#222;">${cf.text}</div>
+        <div style="font-size:11px;line-height:1.8;white-space:pre-wrap;color:#222;">${cf.text}</div>
       </div>`;
     }).join('');
-    return `${sec('Coach Feedback')}${items}`;
+    return `${sec('Coach Feedback', '#bf360c')}${items}`;
   })()}
 
   <!-- FOOTER -->
-  <div style="border-top:1px solid #ccc;margin-top:24px;padding-top:8px;font-size:10px;color:#aaa;text-align:center;">
-    Project IronLogic &nbsp;·&nbsp; ${periodLabel} Report &nbsp;·&nbsp; ${genStr}
+  <div style="border-top:2px solid #ff6b35;margin-top:28px;padding-top:10px;display:flex;justify-content:space-between;align-items:center;">
+    <span style="font-size:10px;font-weight:800;letter-spacing:0.1em;color:#ff6b35;">🏋️ PROJECT IRONLOGIC</span>
+    <span style="font-size:10px;color:#aaa;">${periodLabel} Report &nbsp;·&nbsp; ${genStr}</span>
   </div>
 
 </div>`;
