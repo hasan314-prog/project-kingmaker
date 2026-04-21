@@ -1719,8 +1719,8 @@
       <div class="ob-q" style="margin-bottom:6px;">Body Measurements <span class="ci-opt">Optional</span></div>
       <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.5;">Baseline measurements for long-term progress tracking.</div>
       <div style="display:flex;gap:8px;margin-bottom:14px;">
-        <button class="adherence-btn selected" id="ob-munit-in" onclick="obSetMUnit('in')" style="flex:none;padding:8px 18px;font-size:13px;">in</button>
-        <button class="adherence-btn" id="ob-munit-cm" onclick="obSetMUnit('cm')" style="flex:none;padding:8px 18px;font-size:13px;">cm</button>
+        <button class="adherence-btn" id="ob-munit-in" onclick="obSetMUnit('in')" style="flex:none;padding:8px 18px;font-size:13px;">in</button>
+        <button class="adherence-btn selected" id="ob-munit-cm" onclick="obSetMUnit('cm')" style="flex:none;padding:8px 18px;font-size:13px;">cm</button>
       </div>
       <div class="measure-grid" style="margin-bottom:20px;">
         <div class="measure-item">
@@ -1864,7 +1864,7 @@
             <div class="measure-label">Arms</div>
             <div class="measure-input-wrap">
               <input type="number" id="wr-m-arms" placeholder="—" step="0.1" min="0" max="99" />
-              <span class="measure-unit-tag" id="wr-munit">in</span>
+              <span class="measure-unit-tag" id="wr-munit">cm</span>
             </div>
           </div>
           <div class="measure-item">
@@ -2321,7 +2321,7 @@
         <!-- Measurements Trend -->
         <div class="metric-section">
           <div class="ms-header">
-            <div class="ms-title">Measurements — <span id="stats-meas-unit">in</span></div>
+            <div class="ms-title">Measurements — <span id="stats-meas-unit">cm</span></div>
             <button class="ms-action-btn" onclick="openMeasLog()">+ LOG</button>
           </div>
           <div class="ms-body">
@@ -2543,7 +2543,7 @@ function authSignOut() {
           _auth.signOut().then(() => {
             _currentUser = null;
             _dataLoaded  = false;
-            S = { days:{}, weights:{}, measurements:{}, measurementUnit:'in',
+            S = { days:{}, weights:{}, measurements:{}, measurementUnit:'cm',
               weightUnit:'kg', customTasks:[], stepGoal:10000, deadlineHour:23,
               onboardingDone:false, onboardingFails:'', onboardingReason:'',
               pendingPenalty:null, pendingReview:false, reviewCount:0,
@@ -2645,7 +2645,7 @@ let S = {
   weights:         {},      // { "YYYY-MM-DD": number }
   weightUnit:      'kg',
   measurements:    {},      // { "YYYY-MM-DD": { arms, chest, abdomen, waist, thighs, calves, hips } }
-  measurementUnit: 'in',
+  measurementUnit: 'cm',
   // Onboarding
   name:            '',
   goal:            '',
@@ -2693,6 +2693,8 @@ function _migrateState() {
     delete S.disciplineTask;
   }
   if (!S.customTasks) S.customTasks = [];
+  // Migrate measurement unit: inches → cm (app-wide standard)
+  if (S.measurementUnit === 'in') S.measurementUnit = 'cm';
 }
 
 /* ─────────────────────────────
@@ -2981,7 +2983,7 @@ function openMeasLog(prefillDate) {
      </div>`
   ).join('');
 
-  openModal(`Log Measurements (${S.measurementUnit || 'in'})`,
+  openModal(`Log Measurements (${S.measurementUnit || 'cm'})`,
     `<div style="display:flex;flex-direction:column;gap:12px;">
        <div>
          <div style="font-size:9px;font-weight:800;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:5px;">DATE</div>
@@ -3250,7 +3252,7 @@ function selectMeasurementPill(field) {
   document.querySelectorAll('.meas-pill').forEach(p =>
     p.classList.toggle('active', p.dataset.field === field)
   );
-  const unit    = S.measurementUnit || 'in';
+  const unit    = S.measurementUnit || 'cm';
   const label   = MEAS_FIELDS.find(f => f.key === field)?.label || field.toUpperCase();
   const entries = getMeasurementEntries(field);
   const wrap    = $('meas-chart-wrap');
@@ -3362,12 +3364,12 @@ function startJourney() {
 }
 
 /* ─── Onboarding ────────────────────────────── */
-let _obMUnit = 'in';
+let _obMUnit = 'cm';
 
 function showOnboarding() {
   document.querySelectorAll('.ob-screen').forEach(s => s.classList.remove('active'));
   $('ob-s1').classList.add('active');
-  _obMUnit = S.measurementUnit || 'in';
+  _obMUnit = S.measurementUnit || 'cm';
   if ($('ob-name'))   $('ob-name').value = '';
   if ($('ob-goal'))   { $('ob-goal').value = ''; $('ob-goal-count').textContent = '0 / 500'; }
   if ($('ob-weight')) $('ob-weight').value = '';
@@ -3522,7 +3524,7 @@ function showGateWeeklyReview() {
   ['arms','chest','abdomen','waist','thighs','calves','hips'].forEach(m => {
     const el = $(`wr-m-${m}`); if (el) el.value = '';
   });
-  const mUnit = $('wr-munit'); if (mUnit) mUnit.textContent = S.measurementUnit || 'in';
+  const mUnit = $('wr-munit'); if (mUnit) mUnit.textContent = S.measurementUnit || 'cm';
 
   // Compute last 7 tracked days stats
   const keys   = getLastNTracked(7);
@@ -4177,7 +4179,7 @@ function _execSeedDemoData() {
   S.weights        = weights;
   S.weightUnit     = 'kg';
   S.measurements   = measurements;
-  S.measurementUnit= 'in';
+  S.measurementUnit= 'cm';
   S.name           = 'Alex Demo';
   S.goal           = 'Lose 15 kg, build consistent training habits, and improve overall discipline over the next 6 months.';
   S.height         = '175 cm';
@@ -4377,7 +4379,7 @@ function renderStats() {
   }
 
   // Measurements trend
-  $('stats-meas-unit').textContent = S.measurementUnit || 'in';
+  $('stats-meas-unit').textContent = S.measurementUnit || 'cm';
   $('meas-pill-row').innerHTML = MEAS_FIELDS.map(f =>
     `<button class="meas-pill${f.key === _activeMeasField ? ' active' : ''}"
       data-field="${f.key}" onclick="selectMeasurementPill('${f.key}')">${f.label}</button>`
@@ -4596,7 +4598,7 @@ function generateReportHTML(curDates, prevDates, periodLabel) {
   const prev = computePeriodData(prevDates);
 
   const wUnit  = S.weightUnit      || 'kg';
-  const mUnit  = S.measurementUnit || 'in';
+  const mUnit  = S.measurementUnit || 'cm';
   const level  = computeLevel();
   const today  = new Date();
   const genStr = today.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
