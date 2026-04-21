@@ -4602,7 +4602,7 @@ function generateReportHTML(curDates, prevDates, periodLabel) {
   const level  = computeLevel();
   const today  = new Date();
   const genStr = today.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
-  const summarizeRef = periodDays > 7;
+  const summarizeRef = curDates.length > 7;
 
   const sec = (title) =>
     `<div style="font-size:10px;font-weight:900;letter-spacing:0.14em;text-transform:uppercase;
