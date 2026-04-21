@@ -1549,14 +1549,25 @@
 
     @media print {
       body > *     { display: none !important; }
+      body {
+        background: #f5ede4 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
       #print-report {
         display: block !important;
         position: static !important;
         margin: 0; padding: 0;
-        background: #fff;
-        color: #000;
+        background: #f5ede4;
+        color: #111;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
       }
-      @page { margin: 14mm 16mm; size: A4; }
+      @page {
+        margin: 12mm 14mm;
+        size: A4;
+        background: #f5ede4;
+      }
     }
 
   </style>
@@ -4482,12 +4493,12 @@ function rptTable(rows) {
   let h = '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:4px;border-radius:6px;overflow:hidden;">';
   rows.forEach((row, ri) => {
     const hdr   = ri === 0;
-    const rowBg = hdr ? '#1a1a1a' : ri % 2 === 0 ? '#f7f7f7' : '#ffffff';
+    const rowBg = hdr ? '#1a1a1a' : ri % 2 === 0 ? '#ede5dc' : '#f8f2ec';
     h += `<tr style="background:${rowBg};">`;
     row.forEach((cell, ci) => {
       const s = hdr
         ? 'font-size:9px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#ffffff;padding:7px 10px;text-align:left;'
-        : `padding:7px 10px;border-bottom:1px solid #ebebeb;vertical-align:top;color:${ci===0?'#111':'#333'};font-weight:${ci===0?'600':'400'};`;
+        : `padding:7px 10px;border-bottom:1px solid #d8cec4;vertical-align:top;color:${ci===0?'#111':'#333'};font-weight:${ci===0?'600':'400'};`;
       const tag = hdr ? 'th' : 'td';
       h += `<${tag} style="${s}width:${colW[ci]||'auto'}">${cell || '—'}</${tag}>`;
     });
@@ -4584,7 +4595,7 @@ function rptReflectionSection(cur, summarize) {
     let s = `<div style="font-weight:800;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:${labelColor};margin:12px 0 6px;">${label} (${notes.length})${more}</div>`;
     shown.forEach(n => {
       const [,m,d] = n.date.split('-').map(Number);
-      s += `<div style="font-size:11px;padding:6px 10px;border-left:3px solid ${borderColor};background:${borderColor}12;margin-bottom:5px;border-radius:0 4px 4px 0;">
+      s += `<div style="font-size:11px;padding:6px 10px;border-left:3px solid ${borderColor};background:${borderColor}18;margin-bottom:5px;border-radius:0 4px 4px 0;">
         <span style="font-size:9px;font-weight:700;color:${borderColor};margin-right:8px;letter-spacing:0.06em;">${m}/${d}</span>
         <span style="color:#222;">${n.text}</span>
       </div>`;
@@ -4634,7 +4645,7 @@ function generateReportHTML(curDates, prevDates, periodLabel) {
   const prevPeriodLabel = `Prev ${periodLabel.toLowerCase()}`;
 
   return `
-<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:12px;color:#111;max-width:720px;margin:0 auto;padding:24px;">
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:12px;color:#111;max-width:720px;margin:0 auto;padding:24px;background:#f5ede4;min-height:100vh;">
 
   <!-- HEADER BANNER -->
   <div style="background:#0f0f0f;color:#fff;padding:20px 24px;border-radius:8px;margin-bottom:16px;">
@@ -4651,7 +4662,7 @@ function generateReportHTML(curDates, prevDates, periodLabel) {
     <div style="margin-top:8px;font-size:10px;color:#666;">
       ${rptPeriodStr(curDates)} &nbsp;·&nbsp; Generated ${genStr}
     </div>
-    ${S.goal ? `<div style="margin-top:12px;padding:8px 12px;background:#1e1e1e;border-left:3px solid #ff6b35;border-radius:0 4px 4px 0;font-size:11px;color:#ccc;font-style:italic;line-height:1.6;">"${S.goal.length > 200 ? S.goal.slice(0,200)+'…' : S.goal}"</div>` : ''}
+    ${S.goal ? `<div style="margin-top:12px;padding:8px 12px;background:#2a1a0e;border-left:3px solid #ff6b35;border-radius:0 4px 4px 0;font-size:11px;color:#d4b89a;font-style:italic;line-height:1.6;">"${S.goal.length > 200 ? S.goal.slice(0,200)+'…' : S.goal}"</div>` : ''}
   </div>
 
   <!-- QUICK STATS PILLS -->
@@ -4716,7 +4727,7 @@ function generateReportHTML(curDates, prevDates, periodLabel) {
     if (!cfList.length) return '';
     const items = cfList.map(cf => {
       const revLabel = cf.reviewNum > 0 ? `Review #${cf.reviewNum}` : 'General';
-      return `<div style="margin-bottom:12px;padding:12px 14px;border-left:4px solid #ff6b35;background:#fff8f5;border-radius:0 6px 6px 0;">
+      return `<div style="margin-bottom:12px;padding:12px 14px;border-left:4px solid #ff6b35;background:#ede5dc;border-radius:0 6px 6px 0;">
         <div style="font-size:9px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#ff6b35;margin-bottom:6px;">
           ${revLabel} &nbsp;·&nbsp; ${cf.date}
         </div>
