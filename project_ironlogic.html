@@ -4737,7 +4737,15 @@ function generateReportHTML(curDates, prevDates, periodLabel) {
 
 function printReport(curDates, prevDates, label) {
   $('print-report').innerHTML = generateReportHTML(curDates, prevDates, label);
+  // Set document title so the browser uses it as the default PDF filename
+  const start = curDates[0] || '';
+  const end   = curDates[curDates.length - 1] || '';
+  const slug  = label.replace(/\s+/g, '_');
+  const prevTitle = document.title;
+  document.title  = `IronLogic_${slug}_${start}_to_${end}`;
   window.print();
+  // Restore after a short delay (print dialog needs title while open)
+  setTimeout(() => { document.title = prevTitle; }, 2000);
 }
 
 // ── Date range helpers ────────────────────────────
