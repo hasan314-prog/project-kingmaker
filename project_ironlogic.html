@@ -2854,7 +2854,7 @@ function freshDay() {
   };
 }
 
-function launchApp() { startTimer(); renderAll(); }
+function launchApp() { startTimer(); renderAll(); initNav(); }
 
 /* ─────────────────────────────
    GATES
@@ -4940,6 +4940,37 @@ function openModal(title, bodyHtml, actions) {
 
 function closeModal()          { $('overlay').classList.remove('open'); }
 function maybeCloseModal(e)    { if (e.target === $('overlay')) closeModal(); }
+
+/* ─────────────────────────────
+   BACK BUTTON / GESTURE NAV
+   Strategy: keep one interceptor entry in history at all times.
+   Re-push after every intercepted back. Stop re-pushing when on
+   Today with no modal — lets the OS exit the app naturally.
+───────────────────────────────*/
+function initNav() {
+  history.pushState({ ironlogic: true }, '');
+}
+
+function _getActiveTab() {
+  const tabs = ['today', 'config', 'history', 'stats'];
+  return tabs.find(t => $(`nav-${t}`)?.classList.contains('on')) || 'today';
+}
+
+window.addEventListener('popstate', () => {
+  const modalOpen = $('overlay')?.classList.contains('open');
+  const onToday   = _getActiveTab() === 'today';
+
+  if (modalOpen || !onToday) {
+    // Stay in app — re-push so the next back is also interceptable
+    history.pushState({ ironlogic: true }, '');
+    if (modalOpen) {
+      closeModal();
+    } else {
+      goto('today');
+    }
+  }
+  // else: Today tab, no modal → don't re-push → next back exits app
+});
 
 /* ─────────────────────────────
    TOAST
