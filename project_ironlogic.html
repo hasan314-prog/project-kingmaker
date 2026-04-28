@@ -5020,6 +5020,7 @@ function goto(sc) {
   if (sc==='config')  renderConfig();
   if (sc==='history') renderHistory();
   if (sc==='stats')   renderStats();
+  history.pushState({ il: 'tab', tab: sc }, '');
 }
 
 /* ─────────────────────────────
@@ -5036,40 +5037,75 @@ function openModal(title, bodyHtml, actions) {
     btns.appendChild(b);
   });
   $('overlay').classList.add('open');
+  history.pushState({ il: 'modal' }, '');
 }
 
-function closeModal()          { $('overlay').classList.remove('open'); }
+function closeModal() {
+  $('overlay').classList.remove('open');
+  if (history.state?.il === 'modal') {
+    _navSuppressPop = true;
+    history.back();
+  }
+}
 function maybeCloseModal(e)    { if (e.target === $('overlay')) closeModal(); }
 
 /* ─────────────────────────────
    BACK BUTTON / GESTURE NAV
-   Strategy: keep one interceptor entry in history at all times.
-   Re-push after every intercepted back. Stop re-pushing when on
-   Today with no modal — lets the OS exit the app naturally.
+   Each tab switch and modal push a history state.
+   popstate reads the state and navigates accordingly.
+   Mandatory gates block back navigation.
 ───────────────────────────────*/
+let _navSuppressPop = false;
+
+const _MANDATORY_GATES = [
+  'gate-weekly-review','gate-penalty','gate-checkin','gate-ci-form','gate-onboarding'
+];
+
+function _anyGateVisible() {
+  return _MANDATORY_GATES.some(id => {
+    const el = $(id); return el && !el.classList.contains('off');
+  });
+}
+
 function initNav() {
-  history.pushState({ ironlogic: true }, '');
+  // Replace the current browser entry with our app base state
+  history.replaceState({ il: 'tab', tab: 'today' }, '');
 }
 
-function _getActiveTab() {
-  const tabs = ['today', 'config', 'history', 'stats'];
-  return tabs.find(t => $(`nav-${t}`)?.classList.contains('on')) || 'today';
+// Silent tab switch used by popstate (no history push)
+function _gotoSilent(sc) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('on'));
+  $(`screen-${sc}`)?.classList.add('active');
+  $(`nav-${sc}`)?.classList.add('on');
+  if ($('screen-container')) $('screen-container').scrollTop = 0;
+  if (sc === 'today')   renderToday();
+  if (sc === 'config')  renderConfig();
+  if (sc === 'history') renderHistory();
+  if (sc === 'stats')   renderStats();
 }
 
-window.addEventListener('popstate', () => {
-  const modalOpen = $('overlay')?.classList.contains('open');
-  const onToday   = _getActiveTab() === 'today';
+window.addEventListener('popstate', (e) => {
+  if (_navSuppressPop) { _navSuppressPop = false; return; }
 
-  if (modalOpen || !onToday) {
-    // Stay in app — re-push so the next back is also interceptable
-    history.pushState({ ironlogic: true }, '');
-    if (modalOpen) {
-      closeModal();
-    } else {
-      goto('today');
-    }
+  // Block back on mandatory gates (weekly review, penalty, check-in, etc.)
+  if (_anyGateVisible()) {
+    history.pushState(e.state || { il: 'tab', tab: 'today' }, '');
+    return;
   }
-  // else: Today tab, no modal → don't re-push → next back exits app
+
+  // Modal open → close it (modal state was popped, we're back at tab state)
+  if ($('overlay')?.classList.contains('open')) {
+    $('overlay').classList.remove('open');
+    return;
+  }
+
+  const state = e.state;
+  if (!state?.il) return;  // No app state — browser exits app naturally
+
+  if (state.il === 'tab' && state.tab) {
+    _gotoSilent(state.tab);
+  }
 });
 
 /* ─────────────────────────────
