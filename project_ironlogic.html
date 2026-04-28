@@ -2203,6 +2203,14 @@
         </div>
 
         <div class="config-block">
+          <div class="cfg-label">Notifications</div>
+          <div class="cfg-title">Daily Reminder</div>
+          <div class="cfg-desc">Get a reminder at 9:00 PM if you haven't completed your tasks yet. Only fires when the app is open or backgrounded.</div>
+          <div id="notif-status" style="font-size:11px;color:var(--text-muted);margin:6px 0 10px;"></div>
+          <button class="btn btn-red btn-sm" id="notif-toggle-btn" onclick="toggleNotifications()">ENABLE REMINDERS</button>
+        </div>
+
+        <div class="config-block">
           <div class="cfg-label">Weight Unit</div>
           <div class="cfg-title">Body Weight Unit</div>
           <div class="cfg-desc">Unit used for body weight tracking in Stats.</div>
@@ -2555,7 +2563,7 @@ function authSignOut() {
             _currentUser = null;
             _dataLoaded  = false;
             S = { days:{}, weights:{}, measurements:{}, measurementUnit:'cm',
-              weightUnit:'kg', customTasks:[], stepGoal:10000, deadlineHour:23,
+              weightUnit:'kg', customTasks:[], stepGoal:10000, deadlineHour:23, notifEnabled:null,
               onboardingDone:false, onboardingFails:'', onboardingReason:'',
               pendingPenalty:null, pendingReview:false, reviewCount:0,
               weeklyReviews:[], coachFeedback:[], theme: S.theme || 'dark',
@@ -2652,6 +2660,7 @@ let S = {
   customTasks:     [],     // [{ id:'ct_<n>', text:'...' }] — user-defined tasks
   stepGoal:        10000,
   deadlineHour:    23,
+  notifEnabled:    null,   // null = not yet asked, true = on, false = off
   pendingPenalty:  null,
   weights:         {},      // { "YYYY-MM-DD": number }
   weightUnit:      'kg',
@@ -2854,7 +2863,77 @@ function freshDay() {
   };
 }
 
-function launchApp() { startTimer(); renderAll(); initNav(); }
+function launchApp() { startTimer(); renderAll(); initNav(); setupNotifications(); }
+
+/* ─────────────────────────────
+   DAILY REMINDER NOTIFICATIONS
+───────────────────────────────*/
+let _reminderTimer = null;
+
+async function setupNotifications() {
+  if (!('Notification' in window)) return;
+  if (S.notifEnabled === false) return;       // user explicitly disabled
+  if (Notification.permission === 'granted') {
+    scheduleReminder();
+  } else if (Notification.permission === 'default') {
+    // Ask once — only if they haven't decided yet
+    const perm = await Notification.requestPermission();
+    if (perm === 'granted') {
+      S.notifEnabled = true; save();
+      scheduleReminder();
+    } else {
+      S.notifEnabled = false; save();
+    }
+  }
+  renderConfig();
+}
+
+function scheduleReminder() {
+  clearTimeout(_reminderTimer);
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (S.notifEnabled === false) return;
+
+  const now  = new Date();
+  const fire = new Date();
+  fire.setHours(21, 0, 0, 0);                // 9:00 PM
+  if (fire <= now) fire.setDate(fire.getDate() + 1); // already past → tomorrow
+
+  _reminderTimer = setTimeout(() => {
+    const today = todayStr();
+    const done  = S.days[today]?.status === 'complete';
+    if (!done && Notification.permission === 'granted' && S.notifEnabled !== false) {
+      new Notification('🏋️ IronLogic — Daily Reminder', {
+        body: 'Don\'t forget to complete your tasks before the deadline.',
+        icon: './icon-192.png',
+        tag:  'ironlogic-daily',  // replaces any previous reminder notification
+      });
+    }
+    scheduleReminder();             // reschedule for tomorrow
+  }, fire - now);
+}
+
+function toggleNotifications() {
+  if (!('Notification' in window)) {
+    showToast('Notifications not supported on this browser.');
+    return;
+  }
+  if (Notification.permission === 'denied') {
+    showToast('Notifications blocked. Enable in browser settings.');
+    return;
+  }
+  if (S.notifEnabled === false) {
+    // Re-enable
+    S.notifEnabled = true; save();
+    setupNotifications();
+    showToast('Reminders enabled.');
+  } else {
+    // Disable
+    S.notifEnabled = false;
+    clearTimeout(_reminderTimer);
+    save(); renderConfig();
+    showToast('Reminders disabled.');
+  }
+}
 
 /* ─────────────────────────────
    GATES
@@ -3959,6 +4038,27 @@ function renderConfig() {
   $('weight-unit-select').value   = S.weightUnit;
   if ($('cfg-user-email')) $('cfg-user-email').textContent = _currentUser ? _currentUser.email : '—';
   renderCustomTasksList();
+  // Notification status
+  const statusEl = $('notif-status');
+  const btnEl    = $('notif-toggle-btn');
+  if (statusEl && btnEl) {
+    const supported = 'Notification' in window;
+    const perm      = supported ? Notification.permission : 'unsupported';
+    const enabled   = S.notifEnabled !== false && perm === 'granted';
+    if (!supported) {
+      statusEl.textContent = '⚠️ Not supported on this browser.';
+      btnEl.style.display  = 'none';
+    } else if (perm === 'denied') {
+      statusEl.textContent = '🚫 Blocked by browser — enable in device settings.';
+      btnEl.style.display  = 'none';
+    } else if (enabled) {
+      statusEl.textContent = '✅ Enabled — fires at 9:00 PM if tasks are incomplete.';
+      btnEl.textContent    = 'DISABLE REMINDERS';
+    } else {
+      statusEl.textContent = perm === 'default' ? '⏸ Not set up yet.' : '⏸ Disabled.';
+      btnEl.textContent    = 'ENABLE REMINDERS';
+    }
+  }
 }
 
 function addCustomTask() {
