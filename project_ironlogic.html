@@ -2797,6 +2797,23 @@ function markFailed(k, setPenalty = true) {
   if (setPenalty && prev > 0) { S.pendingPenalty = { date: k, streakLost: prev }; save(); }
 }
 
+// Recompute S.streak from actual day records (used after backdating)
+function recomputeStreak() {
+  const today = todayStr();
+  let streak = 0;
+  const d = new Date();
+  d.setDate(d.getDate() - 1); // start from yesterday
+  while (true) {
+    const k = `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+    if (!S.days[k] || S.days[k].status !== 'complete') break;
+    streak++;
+    d.setDate(d.getDate() - 1);
+  }
+  if (S.days[today]?.status === 'complete') streak++;
+  S.streak = streak;
+  if (streak > (S.bestStreak || 0)) S.bestStreak = streak;
+}
+
 /* ─────────────────────────────
    WATCHER
 ───────────────────────────────*/
@@ -4353,10 +4370,15 @@ function showDayDetail(k) {
     { weekday:'long', month:'long', day:'numeric', year:'numeric' });
   const r = S.days[k];
 
+  const isPast = k < todayStr();
+
   if (!r) {
     openModal(dateLabel,
       `<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:12px 0;">No activity recorded for this day.</div>`,
-      [{ label:'CLOSE', cls:'btn-ghost', fn: closeModal }]
+      isPast
+        ? [{ label:'CLOSE', cls:'btn-ghost', fn: closeModal },
+           { label:'I DID THIS', cls:'btn-primary', fn: () => { closeModal(); openBackdate(k); } }]
+        : [{ label:'CLOSE', cls:'btn-ghost', fn: closeModal }]
     );
     return;
   }
@@ -4390,12 +4412,85 @@ function showDayDetail(k) {
     </div>`;
   }
 
+  const actions = [{ label:'CLOSE', cls:'btn-ghost', fn: closeModal }];
+  if (isPast && r.status === 'failed') {
+    actions.push({ label:'I DID THIS', cls:'btn-primary', fn: () => { closeModal(); openBackdate(k); } });
+  }
+
   openModal(dateLabel,
     `<div style="font-size:11px;font-weight:900;letter-spacing:0.15em;color:${statusColor};margin-bottom:14px;">${statusText}</div>
      <div>${taskRows}</div>
      ${ciHtml}`,
-    [{ label:'CLOSE', cls:'btn-ghost', fn: closeModal }]
+    actions
   );
+}
+
+/* ─────────────────────────────
+   BACKDATE
+   Lets user mark a past failed/untracked day as complete
+   and select which tasks they actually completed.
+───────────────────────────────*/
+function openBackdate(k) {
+  const [y, m, d] = k.split('-').map(Number);
+  const dateLabel = new Date(y, m-1, d).toLocaleDateString('en-US',
+    { weekday:'long', month:'long', day:'numeric' });
+
+  const existing = S.days[k]?.completedIds || [];
+  const checkboxes = TASKS.map(t =>
+    `<label style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer;">
+       <input type="checkbox" id="bd-${t.id}" value="${t.id}"
+         ${existing.includes(t.id) ? 'checked' : ''}
+         style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;" />
+       <span style="font-size:11px;font-weight:700;letter-spacing:0.04em;">${t.title}</span>
+     </label>`
+  ).join('');
+
+  openModal(`Backdate — ${dateLabel}`,
+    `<div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.5;">
+       Select every task you actually completed on this day.
+     </div>
+     <div>${checkboxes}</div>`,
+    [
+      { label:'CANCEL',   cls:'btn-ghost',   fn: closeModal },
+      { label:'SAVE DAY', cls:'btn-primary',  fn: () => saveBackdate(k) },
+    ]
+  );
+}
+
+function saveBackdate(k) {
+  const completed = TASKS
+    .filter(t => document.getElementById(`bd-${t.id}`)?.checked)
+    .map(t => t.id);
+
+  const prevStatus = S.days[k]?.status;
+
+  // Update the day record
+  S.days[k] = {
+    ...(S.days[k] || {}),
+    status:       'complete',
+    completedIds: completed,
+    completedAt:  k + 'T23:59:00',
+    backdated:    true,
+  };
+
+  // Adjust running totals
+  if (prevStatus === 'failed') {
+    S.totalFailed   = Math.max(0, (S.totalFailed   || 0) - 1);
+    S.totalComplete = (S.totalComplete || 0) + 1;
+  } else if (prevStatus !== 'complete') {
+    // Was untracked
+    S.totalComplete = (S.totalComplete || 0) + 1;
+  }
+
+  // Clear penalty if it was triggered by this date
+  if (S.pendingPenalty?.date === k) S.pendingPenalty = null;
+
+  recomputeStreak();
+  save();
+  closeModal();
+  renderHistory();
+  renderToday();
+  showToast(`${fmtDate(k)} backdated — marked complete.`);
 }
 
 /* ─────────────────────────────
