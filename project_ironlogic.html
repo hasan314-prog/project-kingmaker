@@ -2223,6 +2223,14 @@
           </div>
         </div>
 
+        <div class="config-block">
+          <div class="cfg-label">Planning</div>
+          <div class="cfg-title">Important Events</div>
+          <div class="cfg-desc">Track key upcoming dates — competitions, check-ins, appointments, deadlines.</div>
+          <div id="events-list" style="margin:10px 0 0;"></div>
+          <button class="btn btn-red btn-sm" onclick="openAddEvent()" style="margin-top:10px;white-space:nowrap;">+ ADD EVENT</button>
+        </div>
+
         <div class="divider"></div>
         <div class="sec-label">Danger Zone</div>
         <button class="btn btn-ghost" onclick="confirmResetDay()" style="margin-bottom:8px;">Reset Today's Progress</button>
@@ -2566,7 +2574,7 @@ function authSignOut() {
               weightUnit:'kg', customTasks:[], stepGoal:10000, deadlineHour:23, notifEnabled:null,
               onboardingDone:false, onboardingFails:'', onboardingReason:'',
               pendingPenalty:null, pendingReview:false, reviewCount:0,
-              weeklyReviews:[], coachFeedback:[], theme: S.theme || 'dark',
+              weeklyReviews:[], coachFeedback:[], events:[], theme: S.theme || 'dark',
               name:'', goal:'', height:'', statsWindow:30,
             };
             refreshTasks();
@@ -2679,6 +2687,8 @@ let S = {
   weeklyReviews:   [],
   // Coach feedback
   coachFeedback:   [],   // [{ date: "YYYY-MM-DD", reviewNum: n, text: "..." }]
+  // Important events
+  events:          [],   // [{ id: string, title: string, date: "YYYY-MM-DD" }]
   // Appearance
   theme:           'dark',
 };
@@ -2713,6 +2723,7 @@ function _migrateState() {
     delete S.disciplineTask;
   }
   if (!S.customTasks) S.customTasks = [];
+  if (!S.events)      S.events      = [];
   // Migrate measurement unit: inches → cm (app-wide standard)
   if (S.measurementUnit === 'in') S.measurementUnit = 'cm';
 }
@@ -4055,6 +4066,7 @@ function renderConfig() {
   $('weight-unit-select').value   = S.weightUnit;
   if ($('cfg-user-email')) $('cfg-user-email').textContent = _currentUser ? _currentUser.email : '—';
   renderCustomTasksList();
+  renderEventsList();
   // Notification status
   const statusEl = $('notif-status');
   const btnEl    = $('notif-toggle-btn');
@@ -4116,6 +4128,77 @@ function renderCustomTasksList() {
       <button class="ct-del" onclick="removeCustomTask('${ct.id}')" title="Remove">×</button>
     </div>`
   ).join('');
+}
+
+/* ── Important Events ─────────────────────────────── */
+function renderEventsList() {
+  const el = $('events-list');
+  if (!el) return;
+  const events = (S.events || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+  if (events.length === 0) {
+    el.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:4px 0;">No events yet. Add one below.</div>`;
+    return;
+  }
+  const today = todayStr();
+  el.innerHTML = events.map(ev => {
+    const diff  = Math.round((new Date(ev.date) - new Date(today)) / 86400000);
+    const badge = diff === 0  ? `<span style="color:var(--orange);font-weight:700;">TODAY</span>`
+                : diff  >  0  ? `<span style="color:var(--green);font-size:11px;">in ${diff}d</span>`
+                :               `<span style="color:var(--text-muted);font-size:11px;">${Math.abs(diff)}d ago</span>`;
+    const dateFmt = new Date(ev.date + 'T00:00:00').toLocaleDateString('en-US',
+      { month:'short', day:'numeric', year:'numeric' });
+    return `<div class="ct-row" style="gap:8px;">
+      <span style="font-size:14px;">📅</span>
+      <span class="ct-text" style="flex:1;">${ev.title}</span>
+      <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${dateFmt}</span>
+      <span style="min-width:52px;text-align:right;">${badge}</span>
+      <button class="ct-del" onclick="removeEvent('${ev.id}')" title="Remove">×</button>
+    </div>`;
+  }).join('');
+}
+
+function openAddEvent() {
+  const today = todayStr();
+  openModal('Add Important Event',
+    `<div style="display:flex;flex-direction:column;gap:14px;">
+       <div>
+         <div style="font-size:10px;font-weight:800;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:6px;">EVENT NAME</div>
+         <input type="text" id="ev-title-input" class="text-input" placeholder="e.g., Competition, Blood Work"
+           maxlength="60" style="width:100%;box-sizing:border-box;"
+           onkeydown="if(event.key==='Enter') saveEvent()" />
+       </div>
+       <div>
+         <div style="font-size:10px;font-weight:800;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:6px;">DATE</div>
+         <input type="date" id="ev-date-input" class="text-input" value="${today}"
+           style="width:100%;box-sizing:border-box;" />
+       </div>
+     </div>`,
+    [
+      { label:'CANCEL',    cls:'btn-ghost',  fn: closeModal },
+      { label:'ADD EVENT', cls:'btn-primary', fn: saveEvent },
+    ]
+  );
+  setTimeout(() => $('ev-title-input')?.focus(), 80);
+}
+
+function saveEvent() {
+  const title = $('ev-title-input')?.value.trim();
+  const date  = $('ev-date-input')?.value;
+  if (!title) { showToast('Enter an event name.'); return; }
+  if (!date)  { showToast('Pick a date.'); return; }
+  if (!S.events) S.events = [];
+  S.events.push({ id: 'ev_' + Date.now(), title, date });
+  save();
+  closeModal();
+  renderEventsList();
+  showToast('Event added.');
+}
+
+function removeEvent(id) {
+  S.events = (S.events || []).filter(ev => ev.id !== id);
+  save();
+  renderEventsList();
+  showToast('Event removed.');
 }
 
 function saveStepGoal() {
