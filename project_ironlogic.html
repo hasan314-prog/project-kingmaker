@@ -480,6 +480,8 @@
     .ct-text { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ct-del  { background: none; border: none; color: var(--text-muted); font-size: 16px; cursor: pointer; padding: 0 2px; line-height: 1; flex-shrink: 0; }
     .ct-del:active { color: var(--red); }
+    .ct-edit { background: none; border: none; color: var(--text-muted); font-size: 13px; cursor: pointer; padding: 0 4px; line-height: 1; flex-shrink: 0; }
+    .ct-edit:active { color: var(--orange); }
 
     .deadline-display { font-size: 32px; font-weight: 900; letter-spacing: -0.04em; color: var(--red); margin-bottom: 6px; }
     .deadline-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 14px; }
@@ -4114,6 +4116,39 @@ function removeCustomTask(id) {
   showToast('Task removed.');
 }
 
+function openEditTask(id) {
+  const ct = S.customTasks.find(t => t.id === id);
+  if (!ct) return;
+  openModal('Edit Task',
+    `<input type="text" id="edit-task-input" class="text-input"
+       value="${ct.text.replace(/"/g, '&quot;')}" maxlength="60"
+       style="width:100%;box-sizing:border-box;"
+       onkeydown="if(event.key==='Enter') saveEditTask('${id}')" />`,
+    [
+      { label: 'CANCEL', cls: 'btn-ghost',   fn: closeModal },
+      { label: 'SAVE',   cls: 'btn-primary', fn: () => saveEditTask(id) },
+    ]
+  );
+  setTimeout(() => {
+    const inp = $('edit-task-input');
+    if (inp) { inp.focus(); inp.select(); }
+  }, 60);
+}
+
+function saveEditTask(id) {
+  const val = $('edit-task-input')?.value.trim();
+  if (!val) { showToast('Task name cannot be empty.'); return; }
+  const ct = S.customTasks.find(t => t.id === id);
+  if (!ct) return;
+  ct.text = val;
+  refreshTasks();
+  save();
+  closeModal();
+  renderCustomTasksList();
+  renderToday();
+  showToast('Task updated.');
+}
+
 function renderCustomTasksList() {
   const el = $('custom-tasks-list');
   if (!el) return;
@@ -4125,7 +4160,8 @@ function renderCustomTasksList() {
     `<div class="ct-row">
       <span class="ct-num">${String(_TASKS_PRE.length + i + 1).padStart(2,'0')}</span>
       <span class="ct-text">${ct.text}</span>
-      <button class="ct-del" onclick="removeCustomTask('${ct.id}')" title="Remove">×</button>
+      <button class="ct-edit" onclick="openEditTask('${ct.id}')" title="Edit">✎</button>
+      <button class="ct-del"  onclick="removeCustomTask('${ct.id}')" title="Remove">×</button>
     </div>`
   ).join('');
 }
