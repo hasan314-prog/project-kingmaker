@@ -5101,12 +5101,18 @@ function openCoachFeedbackModal() {
   const tagLabel  = reviewNum > 0
     ? `Tagged to Review #${reviewNum}`
     : 'No reviews completed yet — will be saved as general feedback';
+  const today = todayStr();
 
   openModal('Log Coach Feedback',
-    `<div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;line-height:1.6;">
+    `<div style="font-size:11px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">
        ${tagLabel}
      </div>
-     <textarea id="cf-input" class="text-input ci-textarea" rows="7"
+     <div style="margin-bottom:12px;">
+       <div style="font-size:10px;font-weight:800;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:6px;">DATE</div>
+       <input type="date" id="cf-date-input" class="text-input" value="${today}" max="${today}"
+         style="width:100%;box-sizing:border-box;" />
+     </div>
+     <textarea id="cf-input" class="text-input ci-textarea" rows="6"
        placeholder="Paste or type your coach's comments here..."
        maxlength="2000"
        style="width:100%;margin-bottom:6px;font-size:13px;"></textarea>
@@ -5129,10 +5135,11 @@ function openCoachFeedbackModal() {
 
 function submitCoachFeedback() {
   const text = $('cf-input')?.value.trim();
+  const date = $('cf-date-input')?.value || todayStr();
   if (!text) { closeModal(); return; }
   if (!Array.isArray(S.coachFeedback)) S.coachFeedback = [];
   S.coachFeedback.push({
-    date:      todayStr(),
+    date,
     reviewNum: S.reviewCount || 0,
     text,
   });
