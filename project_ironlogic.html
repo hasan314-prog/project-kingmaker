@@ -5313,14 +5313,42 @@ function renderStravaConfig() {
   }
 }
 
-function connectStrava() {
+async function connectStrava() {
   const cid  = $('strava-cid')?.value.trim();
   const csec = $('strava-csec')?.value.trim();
   if (!cid || !csec) { showToast('Enter Client ID and Client Secret.'); return; }
   if (!S.strava) S.strava = {};
   S.strava.clientId     = cid;
   S.strava.clientSecret = csec;
-  save();
+
+  // 1. Write to localStorage immediately (instant, synchronous)
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(_) {}
+
+  // 2. Stash credentials in sessionStorage as a redirect-proof fallback.
+  //    sessionStorage survives same-tab page navigations (OAuth redirect + return),
+  //    so even if Firestore write fails we can recover credentials on callback.
+  try {
+    sessionStorage.setItem('il_strava_cid',  cid);
+    sessionStorage.setItem('il_strava_csec', csec);
+  } catch(_) {}
+
+  // 3. Force a direct (non-debounced) Firestore write and AWAIT it before navigating.
+  //    The normal save() has a 1.5s debounce — the page redirect fires before it,
+  //    so credentials never reach Firestore. On OAuth return Firestore loads the OLD
+  //    state (no credentials) and overwrites S, causing handleStravaOAuthCallback to fail.
+  if (_currentUser && _dataLoaded) {
+    showToast('Saving credentials… redirecting to Strava.');
+    try {
+      await _db.collection('users').doc(_currentUser.uid)
+        .set({ state: JSON.parse(JSON.stringify(S)) });
+    } catch(e) {
+      console.warn('[IronLogic] Strava pre-redirect Firestore save failed:', e);
+      // sessionStorage fallback still available for the callback.
+    }
+  } else {
+    showToast('Redirecting to Strava…');
+  }
+
   const redirectUri = encodeURIComponent(window.location.href.split('?')[0]);
   window.location.href = `https://www.strava.com/oauth/authorize?client_id=${cid}&redirect_uri=${redirectUri}&response_type=code&scope=activity:read_all&state=strava_auth&approval_prompt=auto`;
 }
@@ -5334,9 +5362,23 @@ async function handleStravaOAuthCallback() {
   // Clean URL immediately
   history.replaceState({}, '', window.location.pathname);
 
+  // Firestore may have loaded OLD state (if the pre-redirect save failed).
+  // Fall back to sessionStorage, which survives same-tab redirects.
   if (!S.strava?.clientId || !S.strava?.clientSecret) {
-    showToast('Strava credentials missing — reconnect from Config.'); return;
+    const fallbackCid  = sessionStorage.getItem('il_strava_cid');
+    const fallbackCsec = sessionStorage.getItem('il_strava_csec');
+    if (fallbackCid && fallbackCsec) {
+      if (!S.strava) S.strava = {};
+      S.strava.clientId     = fallbackCid;
+      S.strava.clientSecret = fallbackCsec;
+      console.log('[IronLogic] Strava credentials restored from sessionStorage fallback.');
+    } else {
+      showToast('Strava credentials missing — reconnect from Config.'); return;
+    }
   }
+  // Clear the one-time fallback now that we've used it
+  try { sessionStorage.removeItem('il_strava_cid'); sessionStorage.removeItem('il_strava_csec'); } catch(_) {}
+
   showToast('Connecting Strava…');
   try {
     // Use form-encoded body to avoid CORS preflight (Strava's token endpoint is restrictive)
