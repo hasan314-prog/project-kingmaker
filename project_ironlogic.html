@@ -5379,24 +5379,35 @@ async function handleStravaOAuthCallback() {
   // Clear the one-time fallback now that we've used it
   try { sessionStorage.removeItem('il_strava_cid'); sessionStorage.removeItem('il_strava_csec'); } catch(_) {}
 
+  // Log exactly what we're sending so we can debug credential issues
+  console.log('[IronLogic] Strava token exchange — client_id:', S.strava.clientId,
+    '| secret prefix:', S.strava.clientSecret?.slice(0,6) + '…',
+    '| code prefix:', code?.slice(0,8) + '…');
+
   showToast('Connecting Strava…');
   try {
     // Use form-encoded body to avoid CORS preflight (Strava's token endpoint is restrictive)
-    // Note: redirect_uri is NOT sent in token exchange — Strava doesn't require it here
+    // Include redirect_uri to match the authorize request (RFC 6749 §4.1.3 requirement)
+    const redirectUri = window.location.href.split('?')[0];
     const body = new URLSearchParams({
       client_id:     S.strava.clientId,
       client_secret: S.strava.clientSecret,
       code,
       grant_type:    'authorization_code',
+      redirect_uri:  redirectUri,
     });
+    console.log('[IronLogic] Strava token POST body:', body.toString().replace(S.strava.clientSecret, '***'));
     const resp = await fetch('https://www.strava.com/oauth/token', {
       method: 'POST',
       body,
     });
     const data = await resp.json();
-    console.log('[IronLogic] Strava token response:', resp.status, data);
+    console.log('[IronLogic] Strava token response:', resp.status, JSON.stringify(data));
     if (!resp.ok) {
-      showToast(`Strava error: ${data.message || resp.status}`);
+      // Show full error details so we can diagnose
+      const errDetail = data.errors ? data.errors.map(e => `${e.field}:${e.code}`).join(', ') : '';
+      showToast(`Strava ${resp.status}: ${data.message || '?'}${errDetail ? ' — ' + errDetail : ''}`);
+      console.error('[IronLogic] Strava error body:', JSON.stringify(data));
       return;
     }
     S.strava.accessToken  = data.access_token;
