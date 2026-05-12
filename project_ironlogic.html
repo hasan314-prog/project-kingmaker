@@ -2240,6 +2240,14 @@
           <button class="btn btn-red btn-sm" onclick="openAddEvent()" style="margin-top:10px;white-space:nowrap;">+ ADD EVENT</button>
         </div>
 
+        <div class="config-block">
+          <div class="cfg-label">Accountability</div>
+          <div class="cfg-title">Weekly Review</div>
+          <div class="cfg-desc">Reflect on the past 7 days — log weight, rate your execution, and account for any failures. Start when you're ready.</div>
+          <div id="wr-cfg-status" style="margin:8px 0 10px;font-size:11px;color:var(--text-muted);line-height:1.5;"></div>
+          <button class="btn btn-red btn-sm" onclick="triggerWeeklyReview()">START WEEKLY REVIEW</button>
+        </div>
+
         <div class="divider"></div>
         <div class="sec-label">Danger Zone</div>
         <button class="btn btn-ghost" onclick="confirmResetDay()" style="margin-bottom:8px;">Reset Today's Progress</button>
@@ -2894,8 +2902,7 @@ function boot() {
   // 2. Penalty gate
   if (S.pendingPenalty) { showGatePenalty(S.pendingPenalty); return; }
 
-  // 3. Weekly review (must be submitted before new day can start)
-  checkWeeklyReview();
+  // 3. Weekly review — only shows when manually triggered from Config
   if (S.pendingReview) { showGateWeeklyReview(); return; }
 
   // 4. Morning check-in
@@ -3659,12 +3666,27 @@ function submitOnboarding() {
 ───────────────────────────────*/
 let _wrRating = null;
 
-function checkWeeklyReview() {
-  if (S.pendingReview) return;
-  const tracked  = Object.keys(S.days).filter(k => S.days[k]?.status !== 'pending').length;
-  const reviews  = S.reviewCount || 0;
-  const due      = Math.floor(tracked / 7);
-  if (due > reviews) { S.pendingReview = true; save(); }
+// Auto-trigger removed — review is now manually started from Config tab
+function checkWeeklyReview() { /* no-op — kept for compatibility */ }
+
+function triggerWeeklyReview() {
+  S.pendingReview = true;
+  save();
+  showGateWeeklyReview();
+}
+
+function renderWeeklyReviewStatus() {
+  const el = $('wr-cfg-status');
+  if (!el) return;
+  const count = S.reviewCount || 0;
+  if (count === 0) {
+    el.textContent = 'No reviews completed yet.';
+    return;
+  }
+  const last    = (S.weeklyReviews || []).slice(-1)[0];
+  const lastStr = last ? ` · Last: ${fmtDate(last.date)}` : '';
+  const ratingStars = last ? ' · ' + '★'.repeat(last.rating) + '☆'.repeat(5 - last.rating) : '';
+  el.innerHTML = `<span style="color:var(--green);">✓</span> ${count} review${count !== 1 ? 's' : ''} completed${lastStr}${ratingStars}`;
 }
 
 function getLastNTracked(n) {
@@ -3797,7 +3819,7 @@ function submitWeeklyReview() {
       <div style="font-size:14px;font-weight:700;line-height:1.5;margin-bottom:${diffNote?'12px':'0'};color:${rate >= 80 ? 'var(--green)' : rate >= 60 ? 'var(--yellow)' : 'var(--red)'};">${feedback}</div>
       ${diffNote ? `<div style="font-size:11px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:10px;">${diffNote}</div>` : ''}
     </div>`,
-    [{ label: 'CONTINUE', cls: 'btn-red', fn: () => { closeModal(); boot(); } }]
+    [{ label: 'CONTINUE', cls: 'btn-red', fn: () => { closeModal(); goto('config'); renderConfig(); } }]
   );
 }
 
@@ -4112,6 +4134,7 @@ function renderConfig() {
   renderCustomTasksList();
   renderEventsList();
   renderStravaConfig();
+  renderWeeklyReviewStatus();
   // Notification status
   const statusEl = $('notif-status');
   const btnEl    = $('notif-toggle-btn');
