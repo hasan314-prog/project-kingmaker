@@ -5320,10 +5320,9 @@ function connectStrava() {
   if (!S.strava) S.strava = {};
   S.strava.clientId     = cid;
   S.strava.clientSecret = csec;
-  const redirectUri = window.location.href.split('?')[0];
-  S.strava.redirectUri  = redirectUri;   // store so token exchange uses the same URI
   save();
-  window.location.href = `https://www.strava.com/oauth/authorize?client_id=${cid}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=activity:read_all&state=strava_auth&approval_prompt=auto`;
+  const redirectUri = encodeURIComponent(window.location.href.split('?')[0]);
+  window.location.href = `https://www.strava.com/oauth/authorize?client_id=${cid}&redirect_uri=${redirectUri}&response_type=code&scope=activity:read_all&state=strava_auth&approval_prompt=auto`;
 }
 
 async function handleStravaOAuthCallback() {
