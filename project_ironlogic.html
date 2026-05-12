@@ -2226,6 +2226,13 @@
         </div>
 
         <div class="config-block">
+          <div class="cfg-label">Integrations</div>
+          <div class="cfg-title">Strava</div>
+          <div class="cfg-desc">Connect Strava to auto-mark your training task when a run is logged and view running stats.</div>
+          <div id="strava-cfg-body" style="margin-top:10px;"></div>
+        </div>
+
+        <div class="config-block">
           <div class="cfg-label">Planning</div>
           <div class="cfg-title">Important Events</div>
           <div class="cfg-desc">Track key upcoming dates — competitions, check-ins, appointments, deadlines.</div>
@@ -2371,6 +2378,17 @@
           </div>
           <div class="ms-body">
             <div class="compliance-list" id="compliance-list"></div>
+          </div>
+        </div>
+
+        <!-- Strava Running -->
+        <div class="metric-section">
+          <div class="ms-header">
+            <div class="ms-title">🏃 Running<span id="strava-conn-badge"></span></div>
+            <button class="ms-action-btn" id="strava-sync-btn" onclick="syncStravaRuns()" style="display:none;">SYNC</button>
+          </div>
+          <div class="ms-body" id="strava-stats-body">
+            <div class="chart-empty">Connect Strava in Config to see running data.</div>
           </div>
         </div>
 
@@ -2576,7 +2594,9 @@ function authSignOut() {
               weightUnit:'kg', customTasks:[], stepGoal:10000, deadlineHour:23, notifEnabled:null,
               onboardingDone:false, onboardingFails:'', onboardingReason:'',
               pendingPenalty:null, pendingReview:false, reviewCount:0,
-              weeklyReviews:[], coachFeedback:[], events:[], theme: S.theme || 'dark',
+              weeklyReviews:[], coachFeedback:[], events:[], stravaRuns:[],
+              strava:{ clientId:'', clientSecret:'', accessToken:'', refreshToken:'', expiresAt:0, connected:false, athleteName:'', lastSync:null },
+              theme: S.theme || 'dark',
               name:'', goal:'', height:'', statsWindow:30,
             };
             refreshTasks();
@@ -2691,6 +2711,18 @@ let S = {
   coachFeedback:   [],   // [{ date: "YYYY-MM-DD", reviewNum: n, text: "..." }]
   // Important events
   events:          [],   // [{ id: string, title: string, date: "YYYY-MM-DD" }]
+  // Strava integration
+  strava: {
+    clientId:     '',
+    clientSecret: '',
+    accessToken:  '',
+    refreshToken: '',
+    expiresAt:    0,       // Unix timestamp seconds
+    connected:    false,
+    athleteName:  '',
+    lastSync:     null,
+  },
+  stravaRuns:      [],   // [{ id, date, name, distance, movingTime, avgSpeed, elevation }]
   // Appearance
   theme:           'dark',
 };
@@ -2724,8 +2756,10 @@ function _migrateState() {
     S.customTasks = [{ id: 'ct_0', text: S.disciplineTask }];
     delete S.disciplineTask;
   }
-  if (!S.customTasks) S.customTasks = [];
-  if (!S.events)      S.events      = [];
+  if (!S.customTasks)  S.customTasks  = [];
+  if (!S.events)       S.events       = [];
+  if (!S.stravaRuns)   S.stravaRuns   = [];
+  if (!S.strava) S.strava = { clientId:'', clientSecret:'', accessToken:'', refreshToken:'', expiresAt:0, connected:false, athleteName:'', lastSync:null };
   // Migrate measurement unit: inches → cm (app-wide standard)
   if (S.measurementUnit === 'in') S.measurementUnit = 'cm';
 }
@@ -2893,7 +2927,15 @@ function freshDay() {
   };
 }
 
-function launchApp() { startTimer(); renderAll(); initNav(); setupNotifications(); }
+function launchApp() {
+  startTimer();
+  renderAll();
+  initNav();
+  setupNotifications();
+  const isOAuthReturn = new URLSearchParams(window.location.search).get('state') === 'strava_auth';
+  handleStravaOAuthCallback();                                // no-op if not a callback
+  if (S.strava?.connected && !isOAuthReturn) syncStravaRuns(); // auto-sync on normal load
+}
 
 /* ─────────────────────────────
    DAILY REMINDER NOTIFICATIONS
@@ -4069,6 +4111,7 @@ function renderConfig() {
   if ($('cfg-user-email')) $('cfg-user-email').textContent = _currentUser ? _currentUser.email : '—';
   renderCustomTasksList();
   renderEventsList();
+  renderStravaConfig();
   // Notification status
   const statusEl = $('notif-status');
   const btnEl    = $('notif-toggle-btn');
@@ -4735,6 +4778,9 @@ function renderStats() {
     }).join('');
   }
 
+  // Strava running stats
+  renderStravaStats();
+
   // Coach feedback list
   renderCoachFeedbackList();
 }
@@ -5226,6 +5272,336 @@ function viewCoachFeedback(idx) {
      <div style="font-size:13px;color:var(--text);line-height:1.8;white-space:pre-wrap;">${cf.text}</div>`,
     [{ label: 'Close', cls: 'btn-ghost', fn: closeModal }]
   );
+}
+
+/* ─────────────────────────────
+   STRAVA INTEGRATION
+───────────────────────────────*/
+
+function renderStravaConfig() {
+  const el = $('strava-cfg-body');
+  if (!el) return;
+  const st = S.strava || {};
+
+  if (st.connected) {
+    const lastSync = st.lastSync
+      ? new Date(st.lastSync).toLocaleString('en-US',{ month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })
+      : 'Never';
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:11px;font-weight:700;color:var(--green);">● Connected</span>
+        <span style="font-size:11px;color:var(--text-muted);">as ${st.athleteName || 'Athlete'}</span>
+      </div>
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:10px;">Last sync: ${lastSync}</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-red btn-sm" onclick="syncStravaRuns()">SYNC NOW</button>
+        <button class="btn btn-ghost btn-sm" onclick="disconnectStrava()">DISCONNECT</button>
+      </div>`;
+  } else {
+    el.innerHTML = `
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:10px;line-height:1.6;">
+        Create a free Strava API app at <b>strava.com/settings/api</b>.<br>
+        Set Authorization Callback Domain to: <code style="font-size:10px;background:var(--surface-3);padding:1px 4px;border-radius:3px;">${window.location.hostname}</code>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
+        <input type="text" id="strava-cid" class="text-input" placeholder="Client ID"
+          value="${st.clientId || ''}" style="width:100%;box-sizing:border-box;" />
+        <input type="password" id="strava-csec" class="text-input" placeholder="Client Secret"
+          value="${st.clientSecret || ''}" style="width:100%;box-sizing:border-box;" />
+      </div>
+      <button class="btn btn-red btn-sm" onclick="connectStrava()">CONNECT STRAVA</button>`;
+  }
+}
+
+function connectStrava() {
+  const cid  = $('strava-cid')?.value.trim();
+  const csec = $('strava-csec')?.value.trim();
+  if (!cid || !csec) { showToast('Enter Client ID and Client Secret.'); return; }
+  if (!S.strava) S.strava = {};
+  S.strava.clientId     = cid;
+  S.strava.clientSecret = csec;
+  save();
+  const redirectUri = encodeURIComponent(window.location.href.split('?')[0]);
+  window.location.href = `https://www.strava.com/oauth/authorize?client_id=${cid}&redirect_uri=${redirectUri}&response_type=code&scope=activity:read_all&state=strava_auth&approval_prompt=auto`;
+}
+
+async function handleStravaOAuthCallback() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('state') !== 'strava_auth') return;
+  const code = params.get('code');
+  if (!code) return;
+
+  // Clean URL immediately
+  history.replaceState({}, '', window.location.pathname);
+
+  if (!S.strava?.clientId || !S.strava?.clientSecret) {
+    showToast('Strava credentials missing — reconnect from Config.'); return;
+  }
+  showToast('Connecting Strava…');
+  try {
+    const resp = await fetch('https://www.strava.com/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id:     S.strava.clientId,
+        client_secret: S.strava.clientSecret,
+        code,
+        grant_type:    'authorization_code',
+      }),
+    });
+    if (!resp.ok) throw new Error(resp.status);
+    const data = await resp.json();
+    S.strava.accessToken  = data.access_token;
+    S.strava.refreshToken = data.refresh_token;
+    S.strava.expiresAt    = data.expires_at;
+    S.strava.connected    = true;
+    S.strava.athleteName  = `${data.athlete?.firstname || ''} ${data.athlete?.lastname || ''}`.trim();
+    save();
+    showToast(`✅ Strava connected — ${S.strava.athleteName}`);
+    renderConfig();
+    syncStravaRuns();
+  } catch (e) {
+    showToast('Strava connection failed. Check credentials.');
+    console.error('[IronLogic] Strava OAuth error:', e);
+  }
+}
+
+async function stravaEnsureToken() {
+  if (!S.strava?.connected) return false;
+  const now = Math.floor(Date.now() / 1000);
+  if (S.strava.expiresAt > now + 60) return true;
+  try {
+    const resp = await fetch('https://www.strava.com/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id:     S.strava.clientId,
+        client_secret: S.strava.clientSecret,
+        refresh_token: S.strava.refreshToken,
+        grant_type:    'refresh_token',
+      }),
+    });
+    if (!resp.ok) throw new Error(resp.status);
+    const data = await resp.json();
+    S.strava.accessToken  = data.access_token;
+    S.strava.refreshToken = data.refresh_token;
+    S.strava.expiresAt    = data.expires_at;
+    save();
+    return true;
+  } catch (e) {
+    S.strava.connected = false; save();
+    showToast('Strava token expired — reconnect in Config.');
+    return false;
+  }
+}
+
+async function syncStravaRuns() {
+  const ok = await stravaEnsureToken();
+  if (!ok) return;
+
+  const syncBtn = $('strava-sync-btn');
+  if (syncBtn) syncBtn.textContent = '…';
+
+  try {
+    const after = Math.floor((Date.now() - 90 * 86400000) / 1000);
+    const resp  = await fetch(
+      `https://www.strava.com/api/v3/athlete/activities?per_page=200&after=${after}`,
+      { headers: { 'Authorization': `Bearer ${S.strava.accessToken}` } }
+    );
+    if (!resp.ok) throw new Error(resp.status);
+
+    const activities = await resp.json();
+    const runs = activities
+      .filter(a => a.type === 'Run')
+      .map(a => ({
+        id:         a.id,
+        date:       a.start_date_local.slice(0, 10),
+        name:       a.name,
+        distance:   a.distance,       // metres
+        movingTime: a.moving_time,    // seconds
+        avgSpeed:   a.average_speed,  // m/s
+        elevation:  a.total_elevation_gain,
+      }));
+
+    S.stravaRuns    = runs;
+    S.strava.lastSync = new Date().toISOString();
+
+    // Auto-mark training task for days that have a run
+    const today = todayStr();
+    runs.forEach(run => {
+      if (run.date > today) return;
+      const day = S.days[run.date];
+      if (!day) return;
+      if (!day.completedIds) day.completedIds = [];
+      if (day.completedIds.includes('training')) return;
+      day.completedIds.push('training');
+      // Flip failed → complete only if all tasks are now done
+      if (TASKS.every(t => day.completedIds.includes(t.id)) && day.status === 'failed') {
+        day.status = 'complete';
+        S.totalFailed   = Math.max(0, (S.totalFailed   || 0) - 1);
+        S.totalComplete = (S.totalComplete || 0) + 1;
+      }
+    });
+    recomputeStreak();
+    save();
+    renderStats();
+    renderToday();
+    renderConfig();
+    showToast(`Synced ${runs.length} run${runs.length !== 1 ? 's' : ''} from Strava.`);
+  } catch (e) {
+    showToast('Strava sync failed — check connection.');
+    console.error('[IronLogic] Strava sync error:', e);
+  } finally {
+    if (syncBtn) syncBtn.textContent = 'SYNC';
+  }
+}
+
+function disconnectStrava() {
+  S.strava = { clientId: S.strava?.clientId || '', clientSecret: '', accessToken: '', refreshToken: '', expiresAt: 0, connected: false, athleteName: '', lastSync: null };
+  S.stravaRuns = [];
+  save();
+  renderConfig();
+  renderStats();
+  showToast('Strava disconnected.');
+}
+
+function formatPace(avgSpeed) {
+  if (!avgSpeed || avgSpeed <= 0) return '—';
+  const secPerKm = 1000 / avgSpeed;
+  const min = Math.floor(secPerKm / 60);
+  const sec = Math.round(secPerKm % 60);
+  return `${min}:${String(sec).padStart(2, '0')}/km`;
+}
+
+function buildRunSVG(entries) {
+  // entries: [{ distance (m), date }] sorted oldest → newest
+  if (entries.length < 2) return null;
+  const VW = 360, VH = 110;
+  const padL = 38, padR = 12, padT = 14, padB = 30;
+  const pw = VW - padL - padR, ph = VH - padT - padB;
+
+  const ds = entries.map(e => e.distance / 1000); // km
+  const minD = Math.min(...ds), maxD = Math.max(...ds);
+  const range = maxD - minD || 0.5;
+
+  const pts = entries.map((e, i) => ({
+    x: padL + (i / (entries.length - 1)) * pw,
+    y: padT + ph - ((e.distance / 1000 - minD) / range) * ph,
+    d: e.distance / 1000, date: e.date,
+  }));
+
+  const polyPts = pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const areaPath = `M${pts[0].x.toFixed(1)},${(padT+ph).toFixed(1)} ` +
+    pts.map(p => `L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') +
+    ` L${pts[pts.length-1].x.toFixed(1)},${(padT+ph).toFixed(1)} Z`;
+
+  const midD = (minD + maxD) / 2;
+  const yLabels = [
+    { v: maxD, y: padT }, { v: midD, y: padT + ph / 2 }, { v: minD, y: padT + ph },
+  ];
+  const xDates = [0, Math.floor((entries.length-1)/2), entries.length-1].map(i => {
+    const [,m,d] = entries[i].date.split('-').map(Number);
+    return { x: pts[i].x, label: `${m}/${d}` };
+  });
+
+  const guideLines = yLabels.map(l =>
+    `<line x1="${padL}" y1="${l.y.toFixed(1)}" x2="${VW-padR}" y2="${l.y.toFixed(1)}" stroke="#1e1e1e" stroke-width="1"/>`
+  ).join('');
+  const yLblHtml = yLabels.map(l =>
+    `<text x="${padL-5}" y="${l.y.toFixed(1)}" text-anchor="end" dominant-baseline="middle" fill="#505050" font-size="9" font-family="system-ui,sans-serif">${l.v.toFixed(1)}</text>`
+  ).join('');
+  const xLblHtml = xDates.map(l =>
+    `<text x="${l.x.toFixed(1)}" y="${(VH-6).toFixed(1)}" text-anchor="middle" fill="#505050" font-size="9" font-family="system-ui,sans-serif">${l.label}</text>`
+  ).join('');
+  const dotsHtml = pts.map((p, i) =>
+    `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${i === pts.length-1 ? 4 : 2.5}" fill="${i === pts.length-1 ? '#ff6b35' : '#3a3a3a'}" stroke="${i === pts.length-1 ? '#2a1400' : 'none'}" stroke-width="2"/>`
+  ).join('');
+
+  return `<svg viewBox="0 0 ${VW} ${VH}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible;">
+    ${guideLines}
+    <defs><linearGradient id="rg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ff6b35" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#ff6b35" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${areaPath}" fill="url(#rg)"/>
+    <polyline points="${polyPts}" fill="none" stroke="#ff6b35" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${yLblHtml}${xLblHtml}${dotsHtml}
+  </svg>`;
+}
+
+function renderStravaStats() {
+  const body    = $('strava-stats-body');
+  const badge   = $('strava-conn-badge');
+  const syncBtn = $('strava-sync-btn');
+  if (!body) return;
+
+  if (!S.strava?.connected) {
+    if (badge)   badge.innerHTML   = '';
+    if (syncBtn) syncBtn.style.display = 'none';
+    body.innerHTML = `<div class="chart-empty">Connect Strava in Config to see running data.</div>`;
+    return;
+  }
+
+  if (badge)   badge.innerHTML   = `<span style="font-size:9px;color:var(--green);margin-left:6px;font-weight:700;">● LIVE</span>`;
+  if (syncBtn) syncBtn.style.display = '';
+
+  const runs = (S.stravaRuns || []).slice().sort((a, b) => b.date.localeCompare(a.date));
+
+  if (!runs.length) {
+    body.innerHTML = `<div class="chart-empty">No runs found in last 90 days. Tap SYNC.</div>`;
+    return;
+  }
+
+  const last     = runs[0];
+  const lastKm   = (last.distance / 1000).toFixed(2);
+  const lastPace = formatPace(last.avgSpeed);
+  const lastDate = fmtDate(last.date).split(',').slice(0, 2).join(',');
+
+  // Weekly volume (Mon–today)
+  const now       = new Date();
+  const dayOfWeek = now.getDay() || 7; // 1=Mon..7=Sun
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - dayOfWeek + 1);
+  const weekKey   = weekStart.toISOString().slice(0, 10);
+  const weekRuns  = runs.filter(r => r.date >= weekKey);
+  const weekKm    = (weekRuns.reduce((s, r) => s + r.distance, 0) / 1000).toFixed(1);
+
+  // Monthly volume
+  const monthKey  = todayStr().slice(0, 7) + '-01';
+  const monthRuns = runs.filter(r => r.date >= monthKey);
+  const monthKm   = (monthRuns.reduce((s, r) => s + r.distance, 0) / 1000).toFixed(1);
+
+  // Trend — last 20 runs chronological
+  const trendRuns = runs.slice(0, 20).reverse();
+  const trendSVG  = trendRuns.length >= 2 ? buildRunSVG(trendRuns) : '';
+
+  const lastSync = S.strava.lastSync
+    ? `Synced ${new Date(S.strava.lastSync).toLocaleString('en-US',{ month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}`
+    : '';
+
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+      <div style="background:var(--surface-2);border-radius:var(--radius);padding:10px;text-align:center;">
+        <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:4px;">LAST RUN</div>
+        <div style="font-size:18px;font-weight:900;color:var(--orange);">${lastKm}</div>
+        <div style="font-size:9px;color:var(--text-muted);">km · ${lastPace}</div>
+      </div>
+      <div style="background:var(--surface-2);border-radius:var(--radius);padding:10px;text-align:center;">
+        <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:4px;">THIS WEEK</div>
+        <div style="font-size:18px;font-weight:900;color:var(--orange);">${weekKm}</div>
+        <div style="font-size:9px;color:var(--text-muted);">km · ${weekRuns.length} run${weekRuns.length !== 1 ? 's' : ''}</div>
+      </div>
+      <div style="background:var(--surface-2);border-radius:var(--radius);padding:10px;text-align:center;">
+        <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:4px;">THIS MONTH</div>
+        <div style="font-size:18px;font-weight:900;color:var(--orange);">${monthKm}</div>
+        <div style="font-size:9px;color:var(--text-muted);">km · ${monthRuns.length} run${monthRuns.length !== 1 ? 's' : ''}</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">${last.name} · ${lastDate} · ${Math.round(last.elevation)}m elev</div>
+    ${trendSVG ? `
+      <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:6px;">DISTANCE TREND (km)</div>
+      <div class="weight-chart-wrap">${trendSVG}</div>` : ''}
+    ${lastSync ? `<div style="font-size:9px;color:var(--text-muted);margin-top:8px;text-align:right;">${lastSync}</div>` : ''}
+  `;
 }
 
 /* ─────────────────────────────
