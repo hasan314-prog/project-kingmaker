@@ -5341,13 +5341,12 @@ async function handleStravaOAuthCallback() {
   showToast('Connecting Strava…');
   try {
     // Use form-encoded body to avoid CORS preflight (Strava's token endpoint is restrictive)
-    const redirectUri = S.strava.redirectUri || window.location.href.split('?')[0];
+    // Note: redirect_uri is NOT sent in token exchange — Strava doesn't require it here
     const body = new URLSearchParams({
       client_id:     S.strava.clientId,
       client_secret: S.strava.clientSecret,
       code,
       grant_type:    'authorization_code',
-      redirect_uri:  redirectUri,
     });
     const resp = await fetch('https://www.strava.com/oauth/token', {
       method: 'POST',
