@@ -5411,8 +5411,9 @@ async function syncStravaRuns() {
     if (!resp.ok) throw new Error(resp.status);
 
     const activities = await resp.json();
+    console.log('[IronLogic] Strava activities fetched:', activities.length, activities.slice(0,3).map(a=>({name:a.name,type:a.type,sport_type:a.sport_type,date:a.start_date_local?.slice(0,10)})));
     const runs = activities
-      .filter(a => a.type === 'Run')
+      .filter(a => a.type === 'Run' || a.sport_type === 'Run')
       .map(a => ({
         id:         a.id,
         date:       a.start_date_local.slice(0, 10),
