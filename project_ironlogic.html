@@ -5339,18 +5339,23 @@ async function handleStravaOAuthCallback() {
   }
   showToast('Connecting Strava…');
   try {
+    // Use form-encoded body to avoid CORS preflight (Strava's token endpoint is restrictive)
+    const body = new URLSearchParams({
+      client_id:     S.strava.clientId,
+      client_secret: S.strava.clientSecret,
+      code,
+      grant_type:    'authorization_code',
+    });
     const resp = await fetch('https://www.strava.com/oauth/token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_id:     S.strava.clientId,
-        client_secret: S.strava.clientSecret,
-        code,
-        grant_type:    'authorization_code',
-      }),
+      body,
     });
-    if (!resp.ok) throw new Error(resp.status);
     const data = await resp.json();
+    console.log('[IronLogic] Strava token response:', resp.status, data);
+    if (!resp.ok) {
+      showToast(`Strava error: ${data.message || resp.status}`);
+      return;
+    }
     S.strava.accessToken  = data.access_token;
     S.strava.refreshToken = data.refresh_token;
     S.strava.expiresAt    = data.expires_at;
@@ -5361,7 +5366,7 @@ async function handleStravaOAuthCallback() {
     renderConfig();
     syncStravaRuns();
   } catch (e) {
-    showToast('Strava connection failed. Check credentials.');
+    showToast(`Strava connection failed: ${e.message}`);
     console.error('[IronLogic] Strava OAuth error:', e);
   }
 }
@@ -5373,8 +5378,7 @@ async function stravaEnsureToken() {
   try {
     const resp = await fetch('https://www.strava.com/oauth/token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: new URLSearchParams({
         client_id:     S.strava.clientId,
         client_secret: S.strava.clientSecret,
         refresh_token: S.strava.refreshToken,
