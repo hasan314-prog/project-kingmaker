@@ -5320,9 +5320,10 @@ function connectStrava() {
   if (!S.strava) S.strava = {};
   S.strava.clientId     = cid;
   S.strava.clientSecret = csec;
+  const redirectUri = window.location.href.split('?')[0];
+  S.strava.redirectUri  = redirectUri;   // store so token exchange uses the same URI
   save();
-  const redirectUri = encodeURIComponent(window.location.href.split('?')[0]);
-  window.location.href = `https://www.strava.com/oauth/authorize?client_id=${cid}&redirect_uri=${redirectUri}&response_type=code&scope=activity:read_all&state=strava_auth&approval_prompt=auto`;
+  window.location.href = `https://www.strava.com/oauth/authorize?client_id=${cid}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=activity:read_all&state=strava_auth&approval_prompt=auto`;
 }
 
 async function handleStravaOAuthCallback() {
@@ -5340,11 +5341,13 @@ async function handleStravaOAuthCallback() {
   showToast('Connecting Strava…');
   try {
     // Use form-encoded body to avoid CORS preflight (Strava's token endpoint is restrictive)
+    const redirectUri = S.strava.redirectUri || window.location.href.split('?')[0];
     const body = new URLSearchParams({
       client_id:     S.strava.clientId,
       client_secret: S.strava.clientSecret,
       code,
       grant_type:    'authorization_code',
+      redirect_uri:  redirectUri,
     });
     const resp = await fetch('https://www.strava.com/oauth/token', {
       method: 'POST',
